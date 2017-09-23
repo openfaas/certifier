@@ -14,7 +14,7 @@ func makeReader(input interface{}) *bytes.Buffer {
 	return bytes.NewBuffer(res)
 }
 
-func post(url1, method string, reader io.Reader) ([]byte, *http.Response, error) {
+func httpReq(url1, method string, reader io.Reader) ([]byte, *http.Response, error) {
 	c := http.Client{}
 
 	req, makeReqErr := http.NewRequest(method, url1, reader)

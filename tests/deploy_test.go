@@ -4,25 +4,71 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/alexellis/faas/gateway/requests"
 )
 
 func Test_Pipeline(t *testing.T) {
-	TestDeploy(t)
-	TestList(t)
-}
-
-func TestDeploy(t *testing.T) {
+	envVars := map[string]string{}
 	deploy := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
 		Service:    "stronghash",
 		Network:    "func_functions",
 		EnvProcess: "sha512sum",
+		EnvVars:    envVars,
 	}
+	DeployTest(t, deploy)
+	TestList(t)
+}
 
-	_, res, err := post(os.Getenv("gateway_url")+"system/functions", "POST", makeReader(deploy))
+func Test_PassingCustomEnvVars(t *testing.T) {
+	envVars := map[string]string{}
+	envVars["custom_env"] = "custom_env_value"
+
+	deploy := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "env-test",
+		Network:    "func_functions",
+		EnvProcess: "env",
+		EnvVars:    envVars,
+	}
+	DeployTest(t, deploy)
+	TestList(t)
+	AssertInvoke(t, deploy.Service, "custom_env")
+}
+
+func AssertInvoke(t *testing.T, name string, expected string) {
+	attempts := 5
+	delay := time.Millisecond * 2000
+	for i := 0; i < attempts; i++ {
+		uri := os.Getenv("gateway_url") + "function/" + name
+		bytesOut, res, err := httpReq(uri, "POST", nil)
+		if err != nil {
+			t.Log(err.Error())
+			t.Fail()
+		}
+
+		if res.StatusCode != http.StatusOK {
+			t.Logf("[%d/%d] Bad response want: %d, got: %d", i+1, attempts, http.StatusOK, res.StatusCode)
+			t.Logf(uri)
+			time.Sleep(delay)
+			continue
+		}
+
+		out := string(bytesOut)
+		if strings.Contains(out, expected) == false {
+			t.Logf("want: %s, got: %s", expected, out)
+
+		}
+	}
+}
+
+func DeployTest(t *testing.T, createRequest requests.CreateFunctionRequest) {
+
+	_, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "POST", makeReader(createRequest))
 	if err != nil {
 		t.Log(err)
 		t.Fail()
@@ -36,7 +82,7 @@ func TestDeploy(t *testing.T) {
 
 func TestList(t *testing.T) {
 
-	bytesOut, res, err := post(os.Getenv("gateway_url")+"system/functions", "GET", nil)
+	bytesOut, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "GET", nil)
 	if err != nil {
 		t.Log(err)
 		t.Fail()
