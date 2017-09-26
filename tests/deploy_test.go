@@ -20,7 +20,9 @@ func Test_Pipeline(t *testing.T) {
 		EnvProcess: "sha512sum",
 		EnvVars:    envVars,
 	}
+
 	DeployTest(t, deploy)
+
 	TestList(t)
 }
 
@@ -41,11 +43,15 @@ func Test_PassingCustomEnvVars(t *testing.T) {
 }
 
 func AssertInvoke(t *testing.T, name string, expected string) {
-	attempts := 5
+	attempts := 30 // i.e. 30x2s = 1m
 	delay := time.Millisecond * 2000
+
 	for i := 0; i < attempts; i++ {
+
 		uri := os.Getenv("gateway_url") + "function/" + name
+
 		bytesOut, res, err := httpReq(uri, "POST", nil)
+
 		if err != nil {
 			t.Log(err.Error())
 			t.Fail()
@@ -54,14 +60,22 @@ func AssertInvoke(t *testing.T, name string, expected string) {
 		if res.StatusCode != http.StatusOK {
 			t.Logf("[%d/%d] Bad response want: %d, got: %d", i+1, attempts, http.StatusOK, res.StatusCode)
 			t.Logf(uri)
+			if i == attempts-1 {
+				t.Logf("Failing after: %d attempts", attempts)
+				t.Fail()
+			}
 			time.Sleep(delay)
 			continue
+		} else {
+			t.Logf("[%d/%d] Correct response: %d", i+1, attempts, res.StatusCode)
 		}
 
 		out := string(bytesOut)
 		if strings.Contains(out, expected) == false {
 			t.Logf("want: %s, got: %s", expected, out)
-
+			t.Fail()
+		} else {
+			break
 		}
 	}
 }
