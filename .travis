@@ -1,0 +1,12 @@
+sudo: required
+
+language: go
+
+go:
+  - 1.8.x
+  
+install:
+  - echo "Please don't go get"
+
+script:
+  - find .
