@@ -11,7 +11,7 @@ import (
 	"github.com/alexellis/faas/gateway/requests"
 )
 
-func Test_PipelineStronghash(t *testing.T) {
+func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
 	deploy := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
@@ -30,10 +30,14 @@ func Test_PipelineStronghash(t *testing.T) {
 		t.Logf("got %d, wanted %d", deployStatus, http.StatusOK)
 		t.Fail()
 	}
-	TestList(t)
+	List(t, http.StatusOK)
 }
 
-func Test_PassingCustomEnvVars(t *testing.T) {
+func Test_InvokeNotFound(t *testing.T) {
+	Invoke(t, "notfound", http.StatusNotFound)
+}
+
+func Test_Deploy_PassingCustomEnvVars(t *testing.T) {
 	envVars := map[string]string{}
 	envVars["custom_env"] = "custom_env_value"
 
@@ -55,11 +59,18 @@ func Test_PassingCustomEnvVars(t *testing.T) {
 		t.Fail()
 	}
 
-	TestList(t)
-	AssertInvoke(t, deploy.Service, "custom_env")
+	List(t, http.StatusOK)
+
+	bytesOut := Invoke(t, deploy.Service, http.StatusOK)
+
+	out := string(bytesOut)
+	if strings.Contains(out, "custom_env") == false {
+		t.Logf("want: %s, got: %s", "custom_env", out)
+		t.Fail()
+	}
 }
 
-func AssertInvoke(t *testing.T, name string, expected string) {
+func Invoke(t *testing.T, name string, expectedStatusCode int) []byte {
 	attempts := 30 // i.e. 30x2s = 1m
 	delay := time.Millisecond * 2000
 
@@ -74,8 +85,8 @@ func AssertInvoke(t *testing.T, name string, expected string) {
 			t.Fail()
 		}
 
-		if res.StatusCode != http.StatusOK {
-			t.Logf("[%d/%d] Bad response want: %d, got: %d", i+1, attempts, http.StatusOK, res.StatusCode)
+		if res.StatusCode != expectedStatusCode {
+			t.Logf("[%d/%d] Bad response want: %d, got: %d", i+1, attempts, expectedStatusCode, res.StatusCode)
 			t.Logf(uri)
 			if i == attempts-1 {
 				t.Logf("Failing after: %d attempts", attempts)
@@ -87,14 +98,9 @@ func AssertInvoke(t *testing.T, name string, expected string) {
 			t.Logf("[%d/%d] Correct response: %d", i+1, attempts, res.StatusCode)
 		}
 
-		out := string(bytesOut)
-		if strings.Contains(out, expected) == false {
-			t.Logf("want: %s, got: %s", expected, out)
-			t.Fail()
-		} else {
-			break
-		}
+		return bytesOut
 	}
+	return nil
 }
 
 func Deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
@@ -107,7 +113,7 @@ func Deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, er
 	return res.StatusCode, nil
 }
 
-func TestList(t *testing.T) {
+func List(t *testing.T, expectedStatusCode int) {
 
 	bytesOut, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "GET", nil)
 	if err != nil {
@@ -115,8 +121,8 @@ func TestList(t *testing.T) {
 		t.Fail()
 	}
 
-	if res.StatusCode != http.StatusOK {
-		t.Logf("got %d, wanted %d", res.StatusCode, http.StatusOK)
+	if res.StatusCode != expectedStatusCode {
+		t.Logf("got %d, wanted %d", res.StatusCode, expectedStatusCode)
 		t.Fail()
 	}
 
