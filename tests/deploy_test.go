@@ -11,7 +11,7 @@ import (
 	"github.com/alexellis/faas/gateway/requests"
 )
 
-func Test_Pipeline(t *testing.T) {
+func Test_PipelineStronghash(t *testing.T) {
 	envVars := map[string]string{}
 	deploy := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
@@ -21,8 +21,15 @@ func Test_Pipeline(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	DeployTest(t, deploy)
-
+	deployStatus, deployErr := Deploy(t, deploy)
+	if deployErr != nil {
+		t.Log(deployErr.Error())
+		t.Fail()
+	}
+	if deployStatus != http.StatusOK {
+		t.Logf("got %d, wanted %d", deployStatus, http.StatusOK)
+		t.Fail()
+	}
 	TestList(t)
 }
 
@@ -37,7 +44,17 @@ func Test_PassingCustomEnvVars(t *testing.T) {
 		EnvProcess: "env",
 		EnvVars:    envVars,
 	}
-	DeployTest(t, deploy)
+
+	deployStatus, deployErr := Deploy(t, deploy)
+	if deployErr != nil {
+		t.Log(deployErr.Error())
+		t.Fail()
+	}
+	if deployStatus != http.StatusOK {
+		t.Logf("got %d, wanted %d", deployStatus, http.StatusOK)
+		t.Fail()
+	}
+
 	TestList(t)
 	AssertInvoke(t, deploy.Service, "custom_env")
 }
@@ -80,18 +97,14 @@ func AssertInvoke(t *testing.T, name string, expected string) {
 	}
 }
 
-func DeployTest(t *testing.T, createRequest requests.CreateFunctionRequest) {
+func Deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
 
 	_, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "POST", makeReader(createRequest))
 	if err != nil {
-		t.Log(err)
-		t.Fail()
+		return http.StatusBadGateway, err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		t.Logf("got %d, wanted %d", res.StatusCode, http.StatusOK)
-		t.Fail()
-	}
+	return res.StatusCode, nil
 }
 
 func TestList(t *testing.T) {
