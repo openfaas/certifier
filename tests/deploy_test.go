@@ -34,7 +34,7 @@ func Test_Deploy_Stronghash(t *testing.T) {
 }
 
 func Test_InvokeNotFound(t *testing.T) {
-	Invoke(t, "notfound", http.StatusNotFound)
+	Invoke(t, "notfound", http.StatusNotFound, http.StatusBadGateway)
 }
 
 func Test_Deploy_PassingCustomEnvVars(t *testing.T) {
@@ -70,7 +70,7 @@ func Test_Deploy_PassingCustomEnvVars(t *testing.T) {
 	}
 }
 
-func Invoke(t *testing.T, name string, expectedStatusCode int) []byte {
+func Invoke(t *testing.T, name string, expectedStatusCode ...int) []byte {
 	attempts := 30 // i.e. 30x2s = 1m
 	delay := time.Millisecond * 2000
 
@@ -85,8 +85,16 @@ func Invoke(t *testing.T, name string, expectedStatusCode int) []byte {
 			t.Fail()
 		}
 
-		if res.StatusCode != expectedStatusCode {
-			t.Logf("[%d/%d] Bad response want: %d, got: %d", i+1, attempts, expectedStatusCode, res.StatusCode)
+		validMatch := false
+		for _, code := range expectedStatusCode {
+			if res.StatusCode == code {
+				validMatch = true
+				break
+			}
+		}
+
+		if !validMatch {
+			t.Logf("[%d/%d] Bad response want: %v, got: %d", i+1, attempts, expectedStatusCode, res.StatusCode)
 			t.Logf(uri)
 			if i == attempts-1 {
 				t.Logf("Failing after: %d attempts", attempts)
