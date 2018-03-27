@@ -26,10 +26,12 @@ func Test_Deploy_Stronghash(t *testing.T) {
 		t.Log(deployErr.Error())
 		t.Fail()
 	}
-	if deployStatus != http.StatusOK {
-		t.Logf("got %d, wanted %d", deployStatus, http.StatusOK)
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 		t.Fail()
 	}
+
 	List(t, http.StatusOK)
 }
 
@@ -54,8 +56,9 @@ func Test_Deploy_PassingCustomEnvVars(t *testing.T) {
 		t.Log(deployErr.Error())
 		t.Fail()
 	}
-	if deployStatus != http.StatusOK {
-		t.Logf("got %d, wanted %d", deployStatus, http.StatusOK)
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 		t.Fail()
 	}
 
