@@ -11,6 +11,8 @@ import (
 	"github.com/alexellis/faas/gateway/requests"
 )
 
+var emptyQueryString = ""
+
 func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
 	deploy := requests.CreateFunctionRequest{
@@ -36,10 +38,10 @@ func Test_Deploy_Stronghash(t *testing.T) {
 }
 
 func Test_InvokeNotFound(t *testing.T) {
-	Invoke(t, "notfound", http.StatusNotFound, http.StatusBadGateway)
+	Invoke(t, "notfound", emptyQueryString, http.StatusNotFound, http.StatusBadGateway)
 }
 
-func Test_Deploy_PassingCustomEnvVars(t *testing.T) {
+func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	envVars := map[string]string{}
 	envVars["custom_env"] = "custom_env_value"
 
@@ -64,22 +66,38 @@ func Test_Deploy_PassingCustomEnvVars(t *testing.T) {
 
 	List(t, http.StatusOK)
 
-	bytesOut := Invoke(t, deploy.Service, http.StatusOK)
+	t.Run("Empty QueryString", func(t *testing.T) {
+		bytesOut := Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
 
-	out := string(bytesOut)
-	if strings.Contains(out, "custom_env") == false {
-		t.Logf("want: %s, got: %s", "custom_env", out)
-		t.Fail()
-	}
+		out := string(bytesOut)
+		if strings.Contains(out, "custom_env") == false {
+			t.Logf("want: %s, got: %s", "custom_env", out)
+			t.Fail()
+		}
+	})
+
+	t.Run("Populated QueryString", func(t *testing.T) {
+		bytesOut := Invoke(t, deploy.Service, "testing=1", http.StatusOK)
+
+		out := string(bytesOut)
+		if strings.Contains(out, "Http_Query=testing=1") == false {
+			t.Logf("want: %s, got: %s", "Http_Query=testing=1", out)
+			t.Fail()
+		}
+	})
+
 }
 
-func Invoke(t *testing.T, name string, expectedStatusCode ...int) []byte {
+func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
 	attempts := 30 // i.e. 30x2s = 1m
 	delay := time.Millisecond * 2000
 
-	for i := 0; i < attempts; i++ {
+	uri := os.Getenv("gateway_url") + "function/" + name
+	if len(query) > 0 {
+		uri = uri + "?" + query
+	}
 
-		uri := os.Getenv("gateway_url") + "function/" + name
+	for i := 0; i < attempts; i++ {
 
 		bytesOut, res, err := httpReq(uri, "POST", nil)
 

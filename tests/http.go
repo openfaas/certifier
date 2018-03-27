@@ -26,6 +26,7 @@ func httpReq(url1, method string, reader io.Reader) ([]byte, *http.Response, err
 	if callErr != nil {
 		return nil, nil, fmt.Errorf("call error %s ", callErr)
 	}
+
 	if res.Body != nil {
 		defer res.Body.Close()
 		bytesOut, err := ioutil.ReadAll(res.Body)
