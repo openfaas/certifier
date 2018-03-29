@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexellis/faas/gateway/requests"
+	"github.com/openfaas/faas/gateway/requests"
 )
 
 var emptyQueryString = ""
