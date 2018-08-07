@@ -9,11 +9,44 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openfaas/faas/gateway/requests"
 	"errors"
+
+	"github.com/openfaas/faas/gateway/requests"
 )
 
 var emptyQueryString = ""
+
+func Test_Access_Secret(t *testing.T) {
+	secret := os.Getenv("SECRET")
+	secrets := []string{"secret-api-test-key"}
+	deploy := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "test-secret",
+		Network:    "func_functions",
+		EnvProcess: "cat /var/openfaas/secrets/secret-api-test-key",
+		Secrets:    secrets,
+	}
+
+	deployStatus, deployErr := Deploy(t, deploy)
+	if deployErr != nil {
+		t.Errorf(deployErr.Error())
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+	}
+
+	List(t, http.StatusOK)
+
+	t.Run("Empty QueryString", func(t *testing.T) {
+		bytesOut := Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
+
+		out := strings.TrimSuffix(string(bytesOut), "\n")
+		if out != secret {
+			t.Errorf("want: %q, got: %q", secret, out)
+		}
+	})
+}
 
 func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
