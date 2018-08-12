@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/openfaas/faas/gateway/requests"
+	"errors"
 )
 
 var emptyQueryString = ""
@@ -88,6 +90,78 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 
 }
 
+func Test_Deploy_WithLabels(t *testing.T) {
+	wantedLabels := map[string]string{
+		"upstream_uri": "http://example.com",
+		"canary_build": "true",
+	}
+	envVars := map[string]string{}
+
+	deploy := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "env-test-labels",
+		Network:    "func_functions",
+		EnvProcess: "env",
+		Labels:     &wantedLabels,
+		EnvVars:    envVars,
+	}
+
+	deployStatus, deployErr := Deploy(t, deploy)
+	if deployErr != nil {
+		t.Log(deployErr.Error())
+		t.Fail()
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+		t.Fail()
+	}
+
+	Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
+	function := Get(t, deploy.Service)
+
+	if err := strMapEqual("labels", *function.Labels, wantedLabels); err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+}
+
+func Test_Deploy_WithAnnotations(t *testing.T) {
+	wantedAnnotations := map[string]string{
+		"important-date": "Fri Aug 10 08:21:00 BST 2018",
+		"some-json": `{    "glossary": {        "title": "example glossary",		"GlossDiv": {            "title": "S",			"GlossList": {                "GlossEntry": {                    "ID": "SGML",					"SortAs": "SGML",					"GlossTerm": "Standard Generalized Markup Language",					"Acronym": "SGML",					"Abbrev": "ISO 8879:1986",					"GlossDef": {                        "para": "A meta-markup language, used to create markup languages such as DocBook.",						"GlossSeeAlso": ["GML", "XML"]                    },					"GlossSee": "markup"                }            }        }    }}`,
+	}
+	envVars := map[string]string{}
+
+	deploy := requests.CreateFunctionRequest{
+		Image:       "functions/alpine:latest",
+		Service:     "env-test-annotations",
+		Network:     "func_functions",
+		EnvProcess:  "env",
+		Annotations: &wantedAnnotations,
+		EnvVars:     envVars,
+	}
+
+	deployStatus, deployErr := Deploy(t, deploy)
+	if deployErr != nil {
+		t.Log(deployErr.Error())
+		t.Fail()
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+		t.Fail()
+	}
+
+	Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
+	function := Get(t, deploy.Service)
+
+	if err := strMapEqual("annotations", *function.Annotations, wantedAnnotations); err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+}
+
 func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
 	attempts := 30 // i.e. 30x2s = 1m
 	delay := time.Millisecond * 2000
@@ -119,6 +193,7 @@ func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) 
 			t.Logf(uri)
 			if i == attempts-1 {
 				t.Logf("Failing after: %d attempts", attempts)
+				t.Logf(string(bytesOut))
 				t.Fail()
 			}
 			time.Sleep(delay)
@@ -134,7 +209,11 @@ func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) 
 
 func Deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
 
-	_, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "POST", makeReader(createRequest))
+	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "POST", makeReader(createRequest))
+	if res.StatusCode >= 400 {
+		t.Log(string(body))
+	}
+
 	if err != nil {
 		return http.StatusBadGateway, err
 	}
@@ -165,4 +244,45 @@ func List(t *testing.T, expectedStatusCode int) {
 		t.Log("List functions got: 0, want: > 0")
 		t.Fail()
 	}
+}
+
+func Get(t *testing.T, name string) requests.Function {
+
+	bytesOut, res, err := httpReq(fmt.Sprintf("%ssystem/function/%s",
+		os.Getenv("gateway_url"), name), "GET", nil)
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+
+	if res.StatusCode != 200 {
+		t.Logf("got %d, wanted %d", res.StatusCode, 200)
+		t.Fail()
+	}
+
+	function := requests.Function{}
+	err = json.Unmarshal(bytesOut, &function)
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+
+	return function
+}
+
+func strMapEqual(mapName string, got map[string]string, wanted map[string]string) error {
+	// Can't assert length is equal as some providers i.e. faas-swarm add their own labels during
+	// deployment like 'com.openfaas.function' and 'function'
+
+	for k, v := range wanted {
+		if _, ok := got[k]; !ok {
+			return errors.New(fmt.Sprintf("got missing key, wanted %s %s", k, mapName))
+		}
+
+		if got[k] != v {
+			return errors.New(fmt.Sprintf("got %s, wanted %s %s", got[k], v, mapName))
+		}
+	}
+
+	return nil
 }
