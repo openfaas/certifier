@@ -19,7 +19,7 @@ var emptyQueryString = ""
 func Test_Access_Secret(t *testing.T) {
 	secret := os.Getenv("SECRET")
 	secrets := []string{"secret-api-test-key"}
-	deploy := requests.CreateFunctionRequest{
+	functionRequest := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
 		Service:    "test-secret",
 		Network:    "func_functions",
@@ -27,7 +27,7 @@ func Test_Access_Secret(t *testing.T) {
 		Secrets:    secrets,
 	}
 
-	deployStatus, deployErr := Deploy(t, deploy)
+	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
 		t.Errorf(deployErr.Error())
 	}
@@ -36,10 +36,10 @@ func Test_Access_Secret(t *testing.T) {
 		t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	List(t, http.StatusOK)
+	list(t, http.StatusOK)
 
 	t.Run("Empty QueryString", func(t *testing.T) {
-		bytesOut := Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
+		bytesOut := invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
 
 		out := strings.TrimSuffix(string(bytesOut), "\n")
 		if out != secret {
@@ -50,7 +50,7 @@ func Test_Access_Secret(t *testing.T) {
 
 func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
-	deploy := requests.CreateFunctionRequest{
+	functionRequest := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
 		Service:    "stronghash",
 		Network:    "func_functions",
@@ -58,7 +58,7 @@ func Test_Deploy_Stronghash(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	deployStatus, deployErr := Deploy(t, deploy)
+	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
 		t.Log(deployErr.Error())
 		t.Fail()
@@ -69,18 +69,14 @@ func Test_Deploy_Stronghash(t *testing.T) {
 		t.Fail()
 	}
 
-	List(t, http.StatusOK)
-}
-
-func Test_InvokeNotFound(t *testing.T) {
-	Invoke(t, "notfound", emptyQueryString, http.StatusNotFound, http.StatusBadGateway)
+	list(t, http.StatusOK)
 }
 
 func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	envVars := map[string]string{}
 	envVars["custom_env"] = "custom_env_value"
 
-	deploy := requests.CreateFunctionRequest{
+	functionRequest := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
 		Service:    "env-test",
 		Network:    "func_functions",
@@ -88,7 +84,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	deployStatus, deployErr := Deploy(t, deploy)
+	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
 		t.Log(deployErr.Error())
 		t.Fail()
@@ -99,10 +95,10 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 		t.Fail()
 	}
 
-	List(t, http.StatusOK)
+	list(t, http.StatusOK)
 
 	t.Run("Empty QueryString", func(t *testing.T) {
-		bytesOut := Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
+		bytesOut := invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
 
 		out := string(bytesOut)
 		if strings.Contains(out, "custom_env") == false {
@@ -112,7 +108,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	})
 
 	t.Run("Populated QueryString", func(t *testing.T) {
-		bytesOut := Invoke(t, deploy.Service, "testing=1", http.StatusOK)
+		bytesOut := invoke(t, functionRequest.Service, "testing=1", http.StatusOK)
 
 		out := string(bytesOut)
 		if strings.Contains(out, "Http_Query=testing=1") == false {
@@ -120,7 +116,6 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 			t.Fail()
 		}
 	})
-
 }
 
 func Test_Deploy_WithLabels(t *testing.T) {
@@ -130,7 +125,7 @@ func Test_Deploy_WithLabels(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	deploy := requests.CreateFunctionRequest{
+	functionRequest := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
 		Service:    "env-test-labels",
 		Network:    "func_functions",
@@ -139,7 +134,7 @@ func Test_Deploy_WithLabels(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	deployStatus, deployErr := Deploy(t, deploy)
+	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
 		t.Log(deployErr.Error())
 		t.Fail()
@@ -150,8 +145,8 @@ func Test_Deploy_WithLabels(t *testing.T) {
 		t.Fail()
 	}
 
-	Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
-	function := Get(t, deploy.Service)
+	invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+	function := get(t, functionRequest.Service)
 
 	if err := strMapEqual("labels", *function.Labels, wantedLabels); err != nil {
 		t.Log(err)
@@ -166,7 +161,7 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	deploy := requests.CreateFunctionRequest{
+	functionRequest := requests.CreateFunctionRequest{
 		Image:       "functions/alpine:latest",
 		Service:     "env-test-annotations",
 		Network:     "func_functions",
@@ -175,7 +170,7 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 		EnvVars:     envVars,
 	}
 
-	deployStatus, deployErr := Deploy(t, deploy)
+	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
 		t.Log(deployErr.Error())
 		t.Fail()
@@ -186,8 +181,8 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 		t.Fail()
 	}
 
-	Invoke(t, deploy.Service, emptyQueryString, http.StatusOK)
-	function := Get(t, deploy.Service)
+	invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+	function := get(t, functionRequest.Service)
 
 	if err := strMapEqual("annotations", *function.Annotations, wantedAnnotations); err != nil {
 		t.Log(err)
@@ -195,7 +190,7 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	}
 }
 
-func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
+func invokeWithVerb(t *testing.T,verb string , name string, query string, expectedStatusCode ...int) []byte {
 	attempts := 30 // i.e. 30x2s = 1m
 	delay := time.Millisecond * 2000
 
@@ -206,7 +201,7 @@ func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) 
 
 	for i := 0; i < attempts; i++ {
 
-		bytesOut, res, err := httpReq(uri, "POST", nil)
+		bytesOut, res, err := httpReq(uri, verb, nil)
 
 		if err != nil {
 			t.Log(err.Error())
@@ -222,17 +217,15 @@ func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) 
 		}
 
 		if !validMatch {
-			t.Logf("[%d/%d] Bad response want: %v, got: %d", i+1, attempts, expectedStatusCode, res.StatusCode)
-			t.Logf(uri)
 			if i == attempts-1 {
+				t.Logf(uri)
+				t.Logf("[%d/%d] Bad response want: %v, got: %d", i+1, attempts, expectedStatusCode, res.StatusCode)
 				t.Logf("Failing after: %d attempts", attempts)
 				t.Logf(string(bytesOut))
 				t.Fail()
 			}
 			time.Sleep(delay)
 			continue
-		} else {
-			t.Logf("[%d/%d] Correct response: %d", i+1, attempts, res.StatusCode)
 		}
 
 		return bytesOut
@@ -240,21 +233,26 @@ func Invoke(t *testing.T, name string, query string, expectedStatusCode ...int) 
 	return nil
 }
 
-func Deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
+func invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
+	return invokeWithVerb(t, "POST", name, query, expectedStatusCode...)
+}
+
+func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
 
 	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "POST", makeReader(createRequest))
-	if res.StatusCode >= 400 {
-		t.Log(string(body))
-	}
 
 	if err != nil {
 		return http.StatusBadGateway, err
 	}
 
+	if res.StatusCode >= 400 {
+		t.Log(string(body))
+	}
+
 	return res.StatusCode, nil
 }
 
-func List(t *testing.T, expectedStatusCode int) {
+func list(t *testing.T, expectedStatusCode int) {
 
 	bytesOut, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "GET", nil)
 	if err != nil {
@@ -279,7 +277,7 @@ func List(t *testing.T, expectedStatusCode int) {
 	}
 }
 
-func Get(t *testing.T, name string) requests.Function {
+func get(t *testing.T, name string) requests.Function {
 
 	bytesOut, res, err := httpReq(fmt.Sprintf("%ssystem/function/%s",
 		os.Getenv("gateway_url"), name), "GET", nil)
