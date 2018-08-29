@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 if [[ $(kubectl get secrets -n openfaas-fn | grep secret-api-test-key | wc -l) -eq 0 ]]
 then
