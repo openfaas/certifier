@@ -9,6 +9,7 @@ clean-kubernetes:
 	- kubectl delete -n openfaas-fn deploy/env-test || :; kubectl delete -n openfaas-fn svc/env-test || :
 	- kubectl delete -n openfaas-fn deploy/env-test-annotations || : ; kubectl delete -n openfaas-fn svc/env-test-annotations || :
 	- kubectl delete -n openfaas-fn deploy/env-test-verbs  || :; kubectl delete -n openfaas-fn svc/env-test-verbs || :
+	- kubectl delete -n openfaas-fn deploy/test-secret  || :; kubectl delete -n openfaas-fn svc/test-secret || :
 
 .EXPORT_ALL_VARIABLES:
 secrets-swarm:

@@ -31,7 +31,6 @@ func Test_Access_Secret(t *testing.T) {
 		return
 	}
 
-	t.Log("status ", deployStatus)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
 		t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
@@ -123,7 +122,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 
 func Test_Deploy_WithLabels(t *testing.T) {
 	wantedLabels := map[string]string{
-		"upstream_uri": "http://example.com",
+		"upstream_uri": "example.com",
 		"canary_build": "true",
 	}
 	envVars := map[string]string{}

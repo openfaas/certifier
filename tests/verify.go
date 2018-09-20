@@ -67,7 +67,7 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 			continue
 		}
 
-		if attempts > 1 {
+		if attempts > 0 {
 			t.Logf("[%d/%d] Got correct response: %v - %s", i+1, attempts, res.StatusCode, uri)
 		}
 
