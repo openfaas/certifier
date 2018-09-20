@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,88 @@ import (
 )
 
 var emptyQueryString = ""
+
+func Test_Scaling_Up(t *testing.T) {
+
+	functionRequest := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "test-scaling",
+		Network:    "func_functions",
+		EnvProcess: "env",
+	}
+
+	deployStatus, deployErr := deploy(t, functionRequest)
+	if deployErr != nil {
+		t.Errorf(deployErr.Error())
+		t.Fail()
+		return
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+	}
+
+	invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+
+	err := scale(t, functionRequest.Service, "10")
+	if err != nil {
+		t.Errorf(err.Error())
+		t.Fail()
+		return
+	}
+
+	replicas, err := getReplicas(t, functionRequest.Service)
+	if err != nil {
+		t.Errorf(err.Error())
+		t.Fail()
+		return
+	}
+
+	want := "10"
+	if want != fmt.Sprintf("%d", replicas) {
+		t.Errorf("Want %s replicas, Got %d", want, replicas)
+	}
+
+}
+
+func scale(t *testing.T, fnName string, replicas string) error {
+
+	request := `{"service": "` + fnName + `", "replicas": ` + replicas + `}`
+	reqBody := bytes.NewBufferString(request)
+
+	endpoint := os.Getenv("gateway_url") + "system/scale-function/" + fnName
+	res, err := http.Post(endpoint, "application/json", reqBody)
+	if err != nil {
+		return fmt.Errorf("Failed to POST request %s to endpoint %s. Error: %t", request, endpoint, err)
+	}
+
+	if res.StatusCode != 200 && res.StatusCode != 202 {
+		return fmt.Errorf("Failed scaling function on endpoint: %s. %d %s", endpoint, res.StatusCode, res.Body)
+	}
+	return nil
+
+}
+
+func getReplicas(t *testing.T, fnName string) (uint64, error) {
+
+	endpoint := os.Getenv("gateway_url") + "system/function/" + fnName
+	bytesOut, res, err := httpReq(endpoint, http.MethodGet, nil)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to GET function data for function %s from endpoint %s. Error: %t", fnName, endpoint, err)
+	}
+
+	if res.StatusCode != 200 && res.StatusCode != 202 {
+		return 0, fmt.Errorf("Failed to GET data from endpoint %s: %d, %s", endpoint, res.StatusCode, res.Body)
+	}
+
+	function := requests.Function{}
+	err = json.Unmarshal(bytesOut, &function)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to unmarshal data %s. Error: %t", string(bytesOut), err)
+	}
+
+	return function.Replicas, nil
+}
 
 func Test_Access_Secret(t *testing.T) {
 	secret := os.Getenv("SECRET")
@@ -195,6 +278,7 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 }
 
 func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
+
 	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", http.MethodPost, makeReader(createRequest))
 
 	if err != nil {
