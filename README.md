@@ -5,13 +5,13 @@ The purpose of this project is to certify that an OpenFaaS provider is doing wha
 Usage with gateway on localhost:8080:
 
 ```
-make test
+make test-swarm
 ```
 
 Usage with local Kubernetes cluster:
 
 ```
-gateway_url=http://localhost:31112/ time go test ./tests -v
+make test-kubernetes OPENFAAS_URL=http://localhost:31112/
 ```
 
 This is a work-in-progress and covers a couple of basic scenarios.
