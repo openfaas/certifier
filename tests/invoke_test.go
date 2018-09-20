@@ -2,11 +2,12 @@ package tests
 
 import (
 	"net/http"
-	"testing"
 	"strings"
+	"testing"
+
+	"fmt"
 
 	"github.com/openfaas/faas/gateway/requests"
-	"fmt"
 )
 
 func Test_InvokeNotFound(t *testing.T) {
@@ -17,7 +18,7 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	envVars := map[string]string{}
 	functionRequest := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
-		Service:    "env-test",
+		Service:    "env-test-verbs",
 		Network:    "func_functions",
 		EnvProcess: "env",
 		EnvVars:    envVars,
@@ -27,24 +28,26 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	if deployErr != nil {
 		t.Log(deployErr.Error())
 		t.Fail()
+		return
 	}
 
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
 		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 		t.Fail()
+		return
 	}
 
 	list(t, http.StatusOK)
 
-	verbs :=[]struct {
-		verb        string
-		expect      func(string) bool
+	verbs := []struct {
+		verb  string
+		match func(string) bool
 	}{
-		{ verb: "GET", expect: func(r string) bool { return  strings.Contains(r, "Http_Method=GET")}},
-		{ verb: "POST", expect: func(r string) bool { return  strings.Contains(r, "Http_Method=POST")}},
-		{ verb: "PUT", expect: func(r string) bool { return  strings.Contains(r, "Http_Method=PUT")}},
-		{ verb: "PATCH", expect: func(r string) bool { return  strings.Contains(r, "Http_Method=PATCH")}},
-		{ verb: "DELETE", expect: func(r string) bool { return  strings.Contains(r, "Http_Method=DELETE")}},
+		{verb: http.MethodGet, match: func(r string) bool { return strings.Contains(r, "Http_Method=GET") }},
+		{verb: http.MethodPost, match: func(r string) bool { return strings.Contains(r, "Http_Method=POST") }},
+		{verb: http.MethodPut, match: func(r string) bool { return strings.Contains(r, "Http_Method=PUT") }},
+		{verb: http.MethodPatch, match: func(r string) bool { return strings.Contains(r, "Http_Method=PATCH") }},
+		{verb: http.MethodDelete, match: func(r string) bool { return strings.Contains(r, "Http_Method=DELETE") }},
 	}
 
 	for _, v := range verbs {
@@ -52,7 +55,7 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 			bytesOut := invokeWithVerb(t, v.verb, functionRequest.Service, emptyQueryString, http.StatusOK)
 
 			out := string(bytesOut)
-			if !v.expect(out) {
+			if !v.match(out) {
 				t.Logf("want: %s, got: %s", fmt.Sprintf("Http_Method=%s", v.verb), out)
 				t.Fail()
 			}

@@ -7,9 +7,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
-
-	"errors"
 
 	"github.com/openfaas/faas/gateway/requests"
 )
@@ -30,8 +27,11 @@ func Test_Access_Secret(t *testing.T) {
 	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
 		t.Errorf(deployErr.Error())
+		t.Fail()
+		return
 	}
 
+	t.Log("status ", deployStatus)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
 		t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
@@ -39,6 +39,7 @@ func Test_Access_Secret(t *testing.T) {
 	list(t, http.StatusOK)
 
 	t.Run("Empty QueryString", func(t *testing.T) {
+
 		bytesOut := invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
 
 		out := strings.TrimSuffix(string(bytesOut), "\n")
@@ -60,8 +61,9 @@ func Test_Deploy_Stronghash(t *testing.T) {
 
 	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
-		t.Log(deployErr.Error())
+		t.Errorf(deployErr.Error())
 		t.Fail()
+		return
 	}
 
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
@@ -86,8 +88,9 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 
 	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
-		t.Log(deployErr.Error())
+		t.Errorf(deployErr.Error())
 		t.Fail()
+		return
 	}
 
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
@@ -136,8 +139,9 @@ func Test_Deploy_WithLabels(t *testing.T) {
 
 	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
-		t.Log(deployErr.Error())
+		t.Errorf(deployErr.Error())
 		t.Fail()
+		return
 	}
 
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
@@ -172,8 +176,9 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 
 	deployStatus, deployErr := deploy(t, functionRequest)
 	if deployErr != nil {
-		t.Log(deployErr.Error())
+		t.Errorf(deployErr.Error())
 		t.Fail()
+		return
 	}
 
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
@@ -190,63 +195,16 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	}
 }
 
-func invokeWithVerb(t *testing.T,verb string , name string, query string, expectedStatusCode ...int) []byte {
-	attempts := 30 // i.e. 30x2s = 1m
-	delay := time.Millisecond * 2000
-
-	uri := os.Getenv("gateway_url") + "function/" + name
-	if len(query) > 0 {
-		uri = uri + "?" + query
-	}
-
-	for i := 0; i < attempts; i++ {
-
-		bytesOut, res, err := httpReq(uri, verb, nil)
-
-		if err != nil {
-			t.Log(err.Error())
-			t.Fail()
-		}
-
-		validMatch := false
-		for _, code := range expectedStatusCode {
-			if res.StatusCode == code {
-				validMatch = true
-				break
-			}
-		}
-
-		if !validMatch {
-			if i == attempts-1 {
-				t.Logf(uri)
-				t.Logf("[%d/%d] Bad response want: %v, got: %d", i+1, attempts, expectedStatusCode, res.StatusCode)
-				t.Logf("Failing after: %d attempts", attempts)
-				t.Logf(string(bytesOut))
-				t.Fail()
-			}
-			time.Sleep(delay)
-			continue
-		}
-
-		return bytesOut
-	}
-	return nil
-}
-
-func invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
-	return invokeWithVerb(t, "POST", name, query, expectedStatusCode...)
-}
-
 func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
-
-	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "POST", makeReader(createRequest))
+	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", http.MethodPost, makeReader(createRequest))
 
 	if err != nil {
 		return http.StatusBadGateway, err
 	}
 
 	if res.StatusCode >= 400 {
-		t.Log(string(body))
+		t.Logf("Deploy response: %s", string(body))
+		return res.StatusCode, fmt.Errorf("unable to deploy function")
 	}
 
 	return res.StatusCode, nil
@@ -254,7 +212,7 @@ func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, er
 
 func list(t *testing.T, expectedStatusCode int) {
 
-	bytesOut, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", "GET", nil)
+	bytesOut, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", http.MethodGet, nil)
 	if err != nil {
 		t.Log(err)
 		t.Fail()
@@ -280,7 +238,7 @@ func list(t *testing.T, expectedStatusCode int) {
 func get(t *testing.T, name string) requests.Function {
 
 	bytesOut, res, err := httpReq(fmt.Sprintf("%ssystem/function/%s",
-		os.Getenv("gateway_url"), name), "GET", nil)
+		os.Getenv("gateway_url"), name), http.MethodGet, nil)
 	if err != nil {
 		t.Log(err)
 		t.Fail()
@@ -307,11 +265,11 @@ func strMapEqual(mapName string, got map[string]string, wanted map[string]string
 
 	for k, v := range wanted {
 		if _, ok := got[k]; !ok {
-			return errors.New(fmt.Sprintf("got missing key, wanted %s %s", k, mapName))
+			return fmt.Errorf("got missing key, wanted %s %s", k, mapName)
 		}
 
 		if got[k] != v {
-			return errors.New(fmt.Sprintf("got %s, wanted %s %s", got[k], v, mapName))
+			return fmt.Errorf("got %s, wanted %s %s", got[k], v, mapName)
 		}
 	}
 
