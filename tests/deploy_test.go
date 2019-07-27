@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openfaas/faas/gateway/requests"
 )
@@ -120,6 +121,156 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	})
 }
 
+func Test_Auto_Scaling(t *testing.T) {
+	labels := map[string]string{
+		"com.openfaas.scale.min": "1",
+		"com.openfaas.scale.max": "2",
+	}
+
+	functionRequest := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "test-auto-scaling",
+		Network:    "func_functions",
+		EnvProcess: "env",
+		Labels:     &labels,
+	}
+
+	deployStatus, deployErr := deploy(t, functionRequest)
+	if deployErr != nil {
+		t.Errorf(deployErr.Error())
+		t.Fail()
+		return
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+		t.Fail()
+	}
+
+	finishHTTP := make(chan bool)
+
+	go func() {
+		end := false
+		for !end {
+			select {
+			case <-finishHTTP:
+				end = true
+			default:
+				invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+			}
+		}
+	}()
+
+	// calling function for 60 seconds to increase # of replicas
+	endSignal := time.After(60 * time.Second)
+	end := false
+
+	for !end {
+		select {
+		case <-endSignal:
+			t.Logf("expected 2 replicas not 1 after calling function for 60 seconds")
+			t.Fail()
+			finishHTTP <- true
+			end = true
+		default:
+			function := get(t, functionRequest.Service)
+
+			if function.Replicas == 2 {
+				finishHTTP <- true
+				end = true
+			} else {
+				time.Sleep(time.Millisecond * 1000)
+			}
+		}
+	}
+
+	// waiting for replica count to go down
+	endSignal = time.After(60 * time.Second)
+	end = false
+
+	for !end {
+		select {
+		case <-endSignal:
+			t.Logf("expected 1 replica not 2 after not calling function for 60 seconds")
+			t.Fail()
+			end = true
+		default:
+			function := get(t, functionRequest.Service)
+
+			if function.Replicas == 1 {
+				end = true
+			} else {
+				time.Sleep(time.Millisecond * 1000)
+			}
+		}
+	}
+}
+
+func Test_Scale_From_Zero(t *testing.T) {
+
+	functionRequest := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "test-scale-zero",
+		Network:    "func_functions",
+		EnvProcess: "env",
+	}
+
+	deployStatus, deployErr := deploy(t, functionRequest)
+	if deployErr != nil {
+		t.Errorf(deployErr.Error())
+		t.Fail()
+		return
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+		t.Fail()
+	}
+
+	scale(t, "test-scale-zero", 0)
+	function := get(t, functionRequest.Service)
+
+	if function.Replicas != 0 {
+		t.Logf("want: %d replicas, got: %d replicas", 0, function.Replicas)
+		t.Fail()
+	}
+
+	invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+}
+
+func Test_Deploy_WithMinScale(t *testing.T) {
+	labels := map[string]string{
+		"com.openfaas.scale.min": "2",
+	}
+
+	functionRequest := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "test-min-replica",
+		Network:    "func_functions",
+		EnvProcess: "env",
+		Labels:     &labels,
+	}
+
+	deployStatus, deployErr := deploy(t, functionRequest)
+	if deployErr != nil {
+		t.Errorf(deployErr.Error())
+		t.Fail()
+		return
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+		t.Fail()
+	}
+
+	function := get(t, functionRequest.Service)
+
+	if function.Replicas != 2 {
+		t.Logf("want: %d replicas, got: %d replicas", 2, function.Replicas)
+		t.Fail()
+	}
+}
+
 func Test_Deploy_WithLabels(t *testing.T) {
 	wantedLabels := map[string]string{
 		"upstream_uri": "example.com",
@@ -192,6 +343,25 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 		t.Log(err)
 		t.Fail()
 	}
+}
+
+func scale(t *testing.T, function string, replicas uint64) (int, error) {
+
+	req := map[string]interface{}{"services": function, "replicas": replicas}
+
+	body, res, err := httpReq(fmt.Sprintf("%ssystem/scale-function/%s",
+		os.Getenv("gateway_url"), function), http.MethodPost, makeReader(req))
+
+	if err != nil {
+		return http.StatusBadGateway, err
+	}
+
+	if res.StatusCode >= 400 {
+		t.Logf("Deploy response: %s", string(body))
+		return res.StatusCode, fmt.Errorf("unable to deploy function")
+	}
+
+	return res.StatusCode, nil
 }
 
 func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {

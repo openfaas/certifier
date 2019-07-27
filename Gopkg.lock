@@ -10,10 +10,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-<<<<<<< HEAD
-  inputs-digest = "10022891ee70103c2c36e92b53426baec813bdbe484ff3836908afaf8ec82f10"
-=======
   inputs-digest = "36e066f2021c784556e9c3cf28aa173d05f5a90a52c24939feecce55c0b87144"
->>>>>>> Add test for secrets
   solver-name = "gps-cdcl"
   solver-version = 1

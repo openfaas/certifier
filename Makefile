@@ -11,6 +11,10 @@ clean-kubernetes:
 	- kubectl delete -n openfaas-fn deploy/env-test-labels || : ; kubectl delete -n openfaas-fn svc/env-test-labels || :
 	- kubectl delete -n openfaas-fn deploy/env-test-verbs  || :; kubectl delete -n openfaas-fn svc/env-test-verbs || :
 	- kubectl delete -n openfaas-fn deploy/test-secret  || :; kubectl delete -n openfaas-fn svc/test-secret || :
+	- kubectl delete -n openfaas-fn deploy/test-auto-scaling  || :; kubectl delete -n openfaas-fn svc/test-auto-scaling || :
+	- kubectl delete -n openfaas-fn deploy/test-scale-zero  || :; kubectl delete -n openfaas-fn svc/test-scale-zero || :
+	- kubectl delete -n openfaas-fn deploy/test-min-replica  || :; kubectl delete -n openfaas-fn svc/test-min-replica || :
+	- kubectl delete -n openfaas-fn deploy/env-test-labels  || :; kubectl delete -n openfaas-fn svc/env-test-labels || :
 
 .EXPORT_ALL_VARIABLES:
 secrets-swarm:
