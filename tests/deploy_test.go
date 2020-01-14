@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -195,7 +196,15 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 }
 
 func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
-	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", http.MethodPost, makeReader(createRequest))
+	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
+
+	if urlErr != nil {
+		t.Fatal(urlErr)
+	}
+
+	gwURL.Path = "/system/functions"
+
+	body, res, err := httpReq(gwURL.String(), http.MethodPost, makeReader(createRequest))
 
 	if err != nil {
 		return http.StatusBadGateway, err
@@ -210,8 +219,15 @@ func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, er
 }
 
 func list(t *testing.T, expectedStatusCode int) {
+	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
 
-	bytesOut, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", http.MethodGet, nil)
+	if urlErr != nil {
+		t.Fatal(urlErr)
+	}
+
+	gwURL.Path = "/system/functions"
+
+	bytesOut, res, err := httpReq(gwURL.String(), http.MethodGet, nil)
 	if err != nil {
 		t.Log(err)
 		t.Fail()
@@ -235,9 +251,15 @@ func list(t *testing.T, expectedStatusCode int) {
 }
 
 func get(t *testing.T, name string) requests.Function {
+	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
 
-	bytesOut, res, err := httpReq(fmt.Sprintf("%ssystem/function/%s",
-		os.Getenv("gateway_url"), name), http.MethodGet, nil)
+	if urlErr != nil {
+		t.Fatal(urlErr)
+	}
+
+	gwURL.Path = fmt.Sprintf("/system/function/%s", name)
+
+	bytesOut, res, err := httpReq(gwURL.String(), http.MethodGet, nil)
 	if err != nil {
 		t.Log(err)
 		t.Fail()

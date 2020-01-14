@@ -13,7 +13,7 @@ func invoke(t *testing.T, name string, query string, expectedStatusCode ...int) 
 
 func invokeWithVerb(t *testing.T, verb string, name string, query string, expectedStatusCode ...int) []byte {
 	attempts := 30 // i.e. 30x2s = 1m
-	delay := time.Millisecond * 2000
+	delay := time.Millisecond * 750
 
 	breakoutStatus := []int{http.StatusUnauthorized}
 
