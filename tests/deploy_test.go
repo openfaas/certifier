@@ -9,10 +9,93 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openfaas/faas-provider/types"
 	"github.com/openfaas/faas/gateway/requests"
 )
 
 var emptyQueryString = ""
+
+func Test_Scaling_Up(t *testing.T) {
+	functionRequest := requests.CreateFunctionRequest{
+		Image:      "functions/alpine:latest",
+		Service:    "test-scaling",
+		Network:    "func_functions",
+		EnvProcess: "env",
+	}
+
+	deployStatus, deployErr := deploy(t, functionRequest)
+	if deployErr != nil {
+		t.Errorf(deployErr.Error())
+		t.Fail()
+		return
+	}
+
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Errorf("got %d, but want %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+	}
+
+	invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+
+	var want uint64 = 2
+	scaleStatus, err := scale(functionRequest.Service, want)
+	if err != nil {
+		t.Error(err)
+	}
+	if scaleStatus != http.StatusOK && scaleStatus != http.StatusAccepted {
+		t.Errorf("got %d, but want %d or %d", scaleStatus, http.StatusOK, http.StatusAccepted)
+	}
+
+	replicas, getReplicasStatus, err := getReplicas(functionRequest.Service)
+	if err != nil {
+		t.Error(err)
+	}
+	if getReplicasStatus != http.StatusOK && getReplicasStatus != http.StatusAccepted {
+		t.Errorf("got %d, but want %d or %d", getReplicasStatus, http.StatusOK, http.StatusAccepted)
+	}
+
+	if want != replicas {
+		t.Errorf("got %d, but want %d replicas", replicas, want)
+	}
+}
+
+func scale(fnName string, replicas uint64) (int, error) {
+	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
+	if urlErr != nil {
+		return 0, urlErr
+	}
+	gwURL.Path = fmt.Sprintf("/system/scale-function/%s", fnName)
+
+	req := types.ScaleServiceRequest{
+		ServiceName: fnName,
+		Replicas:    replicas,
+	}
+	rdr := makeReader(req)
+
+	res, err := http.Post(gwURL.String(), "application/json", rdr)
+
+	return res.StatusCode, err
+}
+
+func getReplicas(fnName string) (uint64, int, error) {
+	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
+	if urlErr != nil {
+		return 0, 0, urlErr
+	}
+	gwURL.Path = fmt.Sprintf("/system/function/%s", fnName)
+
+	bytesOut, res, err := httpReq(gwURL.String(), http.MethodGet, nil)
+	if err != nil {
+		return 0, res.StatusCode, err
+	}
+
+	function := requests.Function{}
+	err = json.Unmarshal(bytesOut, &function)
+	if err != nil {
+		return 0, res.StatusCode, err
+	}
+
+	return function.Replicas, res.StatusCode, err
+}
 
 func Test_Access_Secret(t *testing.T) {
 	secret := os.Getenv("SECRET")

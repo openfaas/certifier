@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -17,14 +19,20 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 
 	breakoutStatus := []int{http.StatusUnauthorized}
 
-	uri := os.Getenv("gateway_url") + "function/" + name
+	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
+	if urlErr != nil {
+		t.Log(urlErr)
+		t.Fail()
+	}
+	gwURL.Path = fmt.Sprintf("/function/%s", name)
+
 	if len(query) > 0 {
-		uri = uri + "?" + query
+		gwURL.RawQuery = query
 	}
 
 	for i := 0; i < attempts; i++ {
 
-		bytesOut, res, err := httpReq(uri, verb, nil)
+		bytesOut, res, err := httpReq(gwURL.String(), verb, nil)
 
 		if err != nil {
 			t.Log(err.Error())
@@ -49,7 +57,14 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 		}
 
 		if !validMatch {
-			t.Logf("[%d/%d] Bad response want: %v, got: %d - %s", i+1, attempts, expectedStatusCode, res.StatusCode, uri)
+			t.Logf(
+				"[%d/%d] Bad response, got: %d - %s, but want: %v",
+				i+1,
+				attempts,
+				res.StatusCode,
+				gwURL.String(),
+				expectedStatusCode,
+			)
 
 			if breakout {
 				t.Logf("Received breakout-status %d, failing test", res.StatusCode)
@@ -68,7 +83,12 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 		}
 
 		if attempts > 0 {
-			t.Logf("[%d/%d] Got correct response: %v - %s", i+1, attempts, res.StatusCode, uri)
+			t.Logf(
+				"[%d/%d] Got correct response: %v - %s",
+				i+1, attempts,
+				res.StatusCode,
+				gwURL.String(),
+			)
 		}
 
 		return bytesOut

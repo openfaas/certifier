@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/openfaas/faas/gateway/requests"
 )
 
-var secretsURL string = os.Getenv("gateway_url") + "system/secrets"
 var swarm = flag.Bool("swarm", false, "run swarm-compatible tests only")
 
 type secret types.Secret
@@ -116,18 +116,37 @@ func Test_SecretCRUD(t *testing.T) {
 	t.Logf("Got correct response for listing secret: %d", listStatus)
 }
 
+func getSecretsURL() (string, error) {
+	secretsURL, err := url.Parse(os.Getenv("gateway_url"))
+	if err != nil {
+		return "", err
+	}
+
+	secretsURL.Path = "/system/secrets"
+	return secretsURL.String(), nil
+}
+
 func createSecret(name, value string) (int, error) {
+	secretsURL, err := getSecretsURL()
+	if err != nil {
+		return 0, err
+	}
+
 	req := secret{
 		Name:  name,
 		Value: value,
 	}
 	rdr := makeReader(req)
-
 	_, res, err := httpReq(secretsURL, http.MethodPost, rdr)
 	return res.StatusCode, err
 }
 
 func updateSecret(name, edit string) (int, error) {
+	secretsURL, err := getSecretsURL()
+	if err != nil {
+		return 0, err
+	}
+
 	req := secret{
 		Name:  name,
 		Value: edit,
@@ -139,6 +158,11 @@ func updateSecret(name, edit string) (int, error) {
 }
 
 func deleteSecret(name string) (int, error) {
+	secretsURL, err := getSecretsURL()
+	if err != nil {
+		return 0, err
+	}
+
 	req := secret{Name: name}
 	rdr := makeReader(req)
 
@@ -162,6 +186,11 @@ func listContains(list []secret, s string) bool {
 func listSecrets() ([]secret, int, error) {
 	secretsList := []secret{}
 
+	secretsURL, err := getSecretsURL()
+	if err != nil {
+		return secretsList, 0, err
+	}
+
 	secrets, res, err := httpReq(secretsURL, http.MethodGet, nil)
 	if err != nil {
 		return secretsList, res.StatusCode, err
@@ -172,7 +201,13 @@ func listSecrets() ([]secret, int, error) {
 }
 
 func delete(t *testing.T, delFunctionRequest requests.DeleteFunctionRequest) (int, error) {
-	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", http.MethodDelete, makeReader(delFunctionRequest))
+	gwURL, err := url.Parse(os.Getenv("gateway_url"))
+	if err != nil {
+		return 0, err
+	}
+
+	gwURL.Path = "system/functions"
+	body, res, err := httpReq(gwURL.String(), http.MethodDelete, makeReader(delFunctionRequest))
 
 	if err != nil {
 		return http.StatusBadGateway, err

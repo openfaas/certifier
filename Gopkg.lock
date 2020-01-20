@@ -22,7 +22,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/openfaas/faas-provider/types",
-    "github.com/openfaas/faas/gateway/requests",
+    "github.com/openfaas/faas/gateway/requests"
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
