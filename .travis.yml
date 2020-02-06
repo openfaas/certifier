@@ -4,9 +4,23 @@ language: go
 
 go:
   - 1.8.x
-  
+
+before_install:
+  - sudo apt-get update && sudo apt-get install -y apt-transport-https
+  - curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+  - echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+  - sudo apt-get update
+  - sudo apt-get install -y kubectl 
+
+addons:
+  apt:
+    packages:
+      - docker-ce
+    
 install:
   - echo "Please don't go get"
 
 script:
   - find .
+  - bash run-e2e-test-docker-swarm.sh
+  - bash run-e2e-test-k8s.sh
