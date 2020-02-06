@@ -1,21 +1,13 @@
-# certify-incubator
+# certifier for OpenFaaS
+
+[![Build Status](https://travis-ci.com/openfaas/certifier.svg?branch=master)](https://travis-ci.com/openfaas/certifier)
+[![OpenFaaS](https://img.shields.io/badge/openfaas-serverless-blue.svg)](https://www.openfaas.com)
 
 The purpose of this project is to certify that an OpenFaaS provider is doing what it should in response to the RESTful API.
 
 ## Usage
 
 The tests assume a local environment with basic authentication turned off.
-
-### Swarm
-
-Usage with gateway on `http://127.0.0.1:8080/`:
-
-```
-export OPENFAAS_URL=http://127.0.0.1:8080/
-make test-swarm
-```
-
-You will need to have access to `docker` for creating and cleaning-up of state.
 
 ### Kubernetes
 
@@ -27,6 +19,17 @@ make test-kubernetes
 ```
 
 You will need to have access to `kubectl` for creating and cleaning state.
+
+### Swarm
+
+Usage with gateway on `http://127.0.0.1:8080/`:
+
+```
+export OPENFAAS_URL=http://127.0.0.1:8080/
+make test-swarm
+```
+
+You will need to have access to `docker` for creating and cleaning-up of state.
 
 ## Status
 
