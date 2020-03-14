@@ -3,36 +3,59 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"testing"
 )
+
+// gatewayUrl safely constructs the API url based on the `gateway_url`
+// in the ENV.
+func gatewayUrl(t *testing.T, reqPath, query string) string {
+	t.Helper()
+	uri, err := url.Parse(os.Getenv("gateway_url"))
+	if err != nil {
+		t.Fatalf("invalid gateway url %s", err)
+	}
+
+	uri.Path = path.Join(uri.Path, reqPath)
+	uri.RawQuery = query
+
+	return uri.String()
+}
 
 func makeReader(input interface{}) *bytes.Buffer {
 	res, _ := json.Marshal(input)
 	return bytes.NewBuffer(res)
 }
 
-func httpReq(url1, method string, reader io.Reader) ([]byte, *http.Response, error) {
+func request(t *testing.T, url, method string, reader io.Reader) ([]byte, *http.Response) {
+	t.Helper()
+
 	c := http.Client{}
 
-	req, makeReqErr := http.NewRequest(method, url1, reader)
+	req, makeReqErr := http.NewRequest(method, url, reader)
 	if makeReqErr != nil {
-		return nil, nil, fmt.Errorf("error with request %s ", makeReqErr)
+		t.Fatalf("error with request %s ", makeReqErr)
 	}
 
 	res, callErr := c.Do(req)
 	if callErr != nil {
-		return nil, nil, fmt.Errorf("call error %s ", callErr)
+		t.Fatalf("call error %s ", callErr)
 	}
 
 	if res.Body != nil {
 		defer res.Body.Close()
 		bytesOut, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatalf("error reading response body %s ", err)
+		}
 
-		return bytesOut, res, err
+		return bytesOut, res
 	}
 
-	return nil, res, nil
+	return nil, res
 }

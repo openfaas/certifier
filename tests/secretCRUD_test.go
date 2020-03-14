@@ -3,16 +3,14 @@ package tests
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/openfaas/faas-provider/types"
 	"github.com/openfaas/faas/gateway/requests"
 )
 
-var secretsURL string = os.Getenv("gateway_url") + "system/secrets"
+var secretsPath = "system/secrets"
 var swarm = flag.Bool("swarm", false, "run swarm-compatible tests only")
 
 type secret types.Secret
@@ -22,12 +20,9 @@ func Test_SecretCRUD(t *testing.T) {
 	setName := "secret-name"
 	functionName := "test-secret-crud"
 
-	createStatus, err := createSecret(setName, setValue)
-	if err != nil {
-		t.Error(err)
-	}
+	createStatus := createSecret(t, setName, setValue)
 	if createStatus != http.StatusCreated && createStatus != http.StatusAccepted {
-		t.Errorf("got %d, wanted %d or %d", createStatus, http.StatusOK, http.StatusAccepted)
+		t.Fatalf("got %d, wanted %d or %d", createStatus, http.StatusOK, http.StatusAccepted)
 	}
 	t.Logf("Got correct response for creating secret: %d", createStatus)
 
@@ -39,10 +34,7 @@ func Test_SecretCRUD(t *testing.T) {
 		EnvProcess: "cat /var/openfaas/secrets/" + setName,
 		Secrets:    []string{setName},
 	}
-	deployStatus, err := deploy(t, functionRequest)
-	if err != nil {
-		t.Error(err)
-	}
+	deployStatus := deploy(t, functionRequest)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
 		t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
@@ -55,22 +47,15 @@ func Test_SecretCRUD(t *testing.T) {
 	}
 
 	// Verify that the secret can be listed.
-	names, listStatus, err := listSecrets()
-	if err != nil {
-		t.Error(err)
-	}
+	names := listSecrets(t)
 	if !listContains(names, setName) {
 		t.Errorf("got %v, wanted %s in slice", names, setName)
 	}
-	t.Logf("Got correct response for listing secrets: %d", listStatus)
 
 	// Docker Swarm secrets are immutable, so skip the update tests for swarm.
 	if !*swarm {
 		newValue := "this-is-the-edited-secret-value"
-		updateStatus, err := updateSecret(setName, newValue)
-		if err != nil {
-			t.Error(err)
-		}
+		updateStatus := updateSecret(t, setName, newValue)
 		if updateStatus != http.StatusOK && updateStatus != http.StatusAccepted {
 			t.Errorf("got %d, wanted %d or %d", updateStatus, http.StatusOK, http.StatusAccepted)
 		}
@@ -87,67 +72,59 @@ func Test_SecretCRUD(t *testing.T) {
 	delFunctionRequest := requests.DeleteFunctionRequest{
 		FunctionName: functionName,
 	}
-	delFunctionStatus, err := delete(t, delFunctionRequest)
-	if err != nil {
-		t.Error(err)
-	}
-	if delFunctionStatus != http.StatusOK && delFunctionStatus != http.StatusAccepted {
-		t.Errorf("got %d, wanted %d or %d", delFunctionStatus, http.StatusOK, http.StatusAccepted)
-	}
-	t.Logf("Got correct response for deleting function: %d", delFunctionStatus)
 
-	deleteStatus, err := deleteSecret(setName)
-	if err != nil {
-		t.Error(err)
+	deleteResp, res := request(t, gatewayUrl(t, "system/functions", ""), http.MethodDelete, makeReader(delFunctionRequest))
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted {
+		t.Errorf("got %d, wanted %d or %d: %s", res.StatusCode, http.StatusOK, http.StatusAccepted, deleteResp)
 	}
+	t.Logf("Got correct response for deleting function")
+
+	deleteStatus := deleteSecret(t, setName)
 	if deleteStatus != http.StatusOK && deleteStatus != http.StatusAccepted {
 		t.Errorf("got %d, wanted %d or %d", deleteStatus, http.StatusOK, http.StatusAccepted)
 	}
 	t.Logf("Got correct response for deleting secret: %d", deleteStatus)
 
 	// Verify that the secret was deleted.
-	names, listStatus, err = listSecrets()
-	if err != nil {
-		t.Error(err)
-	}
+	names = listSecrets(t)
 	if listContains(names, setName) {
 		t.Errorf("got %v, wanted %s deleted", names, setName)
 	}
-	t.Logf("Got correct response for listing secret: %d", listStatus)
 }
 
-func createSecret(name, value string) (int, error) {
+func createSecret(t *testing.T, name, value string) int {
+	t.Helper()
+
 	req := secret{
 		Name:  name,
 		Value: value,
 	}
 	rdr := makeReader(req)
 
-	_, res, err := httpReq(secretsURL, http.MethodPost, rdr)
-	return res.StatusCode, err
+	secretsURL := gatewayUrl(t, secretsPath, "")
+	_, res := request(t, secretsURL, http.MethodPost, rdr)
+	return res.StatusCode
 }
 
-func updateSecret(name, edit string) (int, error) {
+func updateSecret(t *testing.T, name, edit string) int {
 	req := secret{
 		Name:  name,
 		Value: edit,
 	}
 	rdr := makeReader(req)
 
-	_, res, err := httpReq(secretsURL, http.MethodPut, rdr)
-	return res.StatusCode, err
+	secretsURL := gatewayUrl(t, secretsPath, "")
+	_, res := request(t, secretsURL, http.MethodPut, rdr)
+	return res.StatusCode
 }
 
-func deleteSecret(name string) (int, error) {
+func deleteSecret(t *testing.T, name string) int {
 	req := secret{Name: name}
 	rdr := makeReader(req)
 
-	_, res, err := httpReq(secretsURL, http.MethodDelete, rdr)
-
-	if err != nil {
-		return 0, err
-	}
-	return res.StatusCode, nil
+	secretsURL := gatewayUrl(t, secretsPath, "")
+	_, res := request(t, secretsURL, http.MethodDelete, rdr)
+	return res.StatusCode
 }
 
 func listContains(list []secret, s string) bool {
@@ -159,28 +136,21 @@ func listContains(list []secret, s string) bool {
 	return false
 }
 
-func listSecrets() ([]secret, int, error) {
+func listSecrets(t *testing.T) []secret {
 	secretsList := []secret{}
 
-	secrets, res, err := httpReq(secretsURL, http.MethodGet, nil)
+	secretsURL := gatewayUrl(t, secretsPath, "")
+	secrets, res := request(t, secretsURL, http.MethodGet, nil)
+
+	err := json.Unmarshal(secrets, &secretsList)
 	if err != nil {
-		return secretsList, res.StatusCode, err
+		t.Fatalf("unable to parse respose: %s", err)
 	}
 
-	json.Unmarshal(secrets, &secretsList)
-	return secretsList, res.StatusCode, nil
-}
-
-func delete(t *testing.T, delFunctionRequest requests.DeleteFunctionRequest) (int, error) {
-	body, res, err := httpReq(os.Getenv("gateway_url")+"system/functions", http.MethodDelete, makeReader(delFunctionRequest))
-
-	if err != nil {
-		return http.StatusBadGateway, err
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected status code 200 when listing secrets")
 	}
 
-	if res.StatusCode >= 400 {
-		t.Logf("Delete response: %s", string(body))
-		return res.StatusCode, fmt.Errorf("unable to delete function")
-	}
-	return res.StatusCode, nil
+	t.Logf("Got correct response for listing secret: %d", res.StatusCode)
+	return secretsList
 }

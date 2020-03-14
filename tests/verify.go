@@ -2,76 +2,54 @@ package tests
 
 import (
 	"net/http"
-	"os"
+	"path"
 	"testing"
 	"time"
 )
 
 func invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
+	t.Helper()
 	return invokeWithVerb(t, http.MethodPost, name, query, expectedStatusCode...)
 }
 
 func invokeWithVerb(t *testing.T, verb string, name string, query string, expectedStatusCode ...int) []byte {
+	t.Helper()
+
 	attempts := 30 // i.e. 30x2s = 1m
 	delay := time.Millisecond * 750
 
 	breakoutStatus := []int{http.StatusUnauthorized}
 
-	uri := os.Getenv("gateway_url") + "function/" + name
-	if len(query) > 0 {
-		uri = uri + "?" + query
-	}
+	uri := gatewayUrl(t, path.Join("function", name), query)
 
+	var bytesOut []byte
 	for i := 0; i < attempts; i++ {
 
-		bytesOut, res, err := httpReq(uri, verb, nil)
+		bytesOut, res := request(t, uri, verb, nil)
 
-		if err != nil {
-			t.Log(err.Error())
-			t.Fail()
-		}
-
-		validMatch := false
 		for _, code := range expectedStatusCode {
 			if res.StatusCode == code {
-				validMatch = true
-				break
-			}
-		}
-
-		breakout := false
-
-		for _, code := range breakoutStatus {
-			if res.StatusCode == code {
-				breakout = true
-				break
-			}
-		}
-
-		if !validMatch {
-			t.Logf("[%d/%d] Bad response want: %v, got: %d - %s", i+1, attempts, expectedStatusCode, res.StatusCode, uri)
-
-			if breakout {
-				t.Logf("Received breakout-status %d, failing test", res.StatusCode)
-				t.Fail()
+				// success, we can stop now
+				t.Logf("[%d/%d] Got correct response: %v - %s", i+1, attempts, res.StatusCode, uri)
 				return bytesOut
 			}
+		}
 
-			if i == attempts-1 {
-
-				t.Logf("Failing after: %d attempts", attempts)
-				t.Logf(string(bytesOut))
-				t.Fail()
+		// handle fatal errors that we can not retry
+		for _, code := range breakoutStatus {
+			if res.StatusCode == code {
+				t.Fatalf("Received breakout-status %d, invoke failed with: %s", res.StatusCode, bytesOut)
 			}
-			time.Sleep(delay)
-			continue
 		}
 
-		if attempts > 0 {
-			t.Logf("[%d/%d] Got correct response: %v - %s", i+1, attempts, res.StatusCode, uri)
-		}
-
-		return bytesOut
+		// finally, log an the error attempt and wait to retry
+		t.Logf("[%d/%d] Bad response want: %v, got: %d - %s", i+1, attempts, expectedStatusCode, res.StatusCode, uri)
+		time.Sleep(delay)
 	}
+
+	// loop ended without success
+	t.Logf("Failing after: %d attempts", attempts)
+	t.Fatalf("invoke failed with: %s", bytesOut)
+
 	return nil
 }

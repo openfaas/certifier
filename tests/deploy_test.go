@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -25,15 +25,9 @@ func Test_Access_Secret(t *testing.T) {
 		Secrets:    secrets,
 	}
 
-	deployStatus, deployErr := deploy(t, functionRequest)
-	if deployErr != nil {
-		t.Errorf(deployErr.Error())
-		t.Fail()
-		return
-	}
-
+	deployStatus := deploy(t, functionRequest)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
 	list(t, http.StatusOK)
@@ -44,7 +38,7 @@ func Test_Access_Secret(t *testing.T) {
 
 		out := strings.TrimSuffix(string(bytesOut), "\n")
 		if out != secret {
-			t.Errorf("want: %q, got: %q", secret, out)
+			t.Fatalf("want: %q, got: %q", secret, out)
 		}
 	})
 }
@@ -59,16 +53,9 @@ func Test_Deploy_Stronghash(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	deployStatus, deployErr := deploy(t, functionRequest)
-	if deployErr != nil {
-		t.Errorf(deployErr.Error())
-		t.Fail()
-		return
-	}
-
+	deployStatus := deploy(t, functionRequest)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-		t.Fail()
+		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
 	list(t, http.StatusOK)
@@ -86,16 +73,9 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	deployStatus, deployErr := deploy(t, functionRequest)
-	if deployErr != nil {
-		t.Errorf(deployErr.Error())
-		t.Fail()
-		return
-	}
-
+	deployStatus := deploy(t, functionRequest)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-		t.Fail()
+		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
 	list(t, http.StatusOK)
@@ -105,8 +85,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 
 		out := string(bytesOut)
 		if strings.Contains(out, "custom_env") == false {
-			t.Logf("want: %s, got: %s", "custom_env", out)
-			t.Fail()
+			t.Fatalf("want: %s, got: %s", "custom_env", out)
 		}
 	})
 
@@ -115,8 +94,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 
 		out := string(bytesOut)
 		if strings.Contains(out, "Http_Query=testing=1") == false {
-			t.Logf("want: %s, got: %s", "Http_Query=testing=1", out)
-			t.Fail()
+			t.Fatalf("want: %s, got: %s", "Http_Query=testing=1", out)
 		}
 	})
 }
@@ -137,24 +115,16 @@ func Test_Deploy_WithLabels(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	deployStatus, deployErr := deploy(t, functionRequest)
-	if deployErr != nil {
-		t.Errorf(deployErr.Error())
-		t.Fail()
-		return
-	}
-
+	deployStatus := deploy(t, functionRequest)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-		t.Fail()
+		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+	_ = invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
 	function := get(t, functionRequest.Service)
 
 	if err := strMapEqual("labels", *function.Labels, wantedLabels); err != nil {
-		t.Log(err)
-		t.Fail()
+		t.Fatal(err)
 	}
 }
 
@@ -174,107 +144,59 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 		EnvVars:     envVars,
 	}
 
-	deployStatus, deployErr := deploy(t, functionRequest)
-	if deployErr != nil {
-		t.Errorf(deployErr.Error())
-		t.Fail()
-		return
-	}
-
+	deployStatus := deploy(t, functionRequest)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-		t.Fail()
+		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
+	_ = invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
 	function := get(t, functionRequest.Service)
 
 	if err := strMapEqual("annotations", *function.Annotations, wantedAnnotations); err != nil {
-		t.Log(err)
-		t.Fail()
+		t.Fatal(err)
 	}
 }
 
-func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) (int, error) {
-	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
+func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) int {
+	t.Helper()
 
-	if urlErr != nil {
-		t.Fatal(urlErr)
-	}
-
-	gwURL.Path = "/system/functions"
-
-	body, res, err := httpReq(gwURL.String(), http.MethodPost, makeReader(createRequest))
-
-	if err != nil {
-		return http.StatusBadGateway, err
-	}
-
+	gwURL := gatewayUrl(t, "/system/functions", "")
+	body, res := request(t, gwURL, http.MethodPost, makeReader(createRequest))
 	if res.StatusCode >= 400 {
-		t.Logf("Deploy response: %s", string(body))
-		return res.StatusCode, fmt.Errorf("unable to deploy function")
+		t.Fatalf("unable to deploy function: %s", string(body))
 	}
 
-	return res.StatusCode, nil
+	return res.StatusCode
 }
 
 func list(t *testing.T, expectedStatusCode int) {
-	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
-
-	if urlErr != nil {
-		t.Fatal(urlErr)
-	}
-
-	gwURL.Path = "/system/functions"
-
-	bytesOut, res, err := httpReq(gwURL.String(), http.MethodGet, nil)
-	if err != nil {
-		t.Log(err)
-		t.Fail()
-	}
-
+	gwURL := gatewayUrl(t, "/system/functions", "")
+	bytesOut, res := request(t, gwURL, http.MethodGet, nil)
 	if res.StatusCode != expectedStatusCode {
-		t.Logf("got %d, wanted %d", res.StatusCode, expectedStatusCode)
-		t.Fail()
+		t.Fatalf("got %d, wanted %d", res.StatusCode, expectedStatusCode)
 	}
 
 	functions := []requests.Function{}
-	err = json.Unmarshal(bytesOut, &functions)
+	err := json.Unmarshal(bytesOut, &functions)
 	if err != nil {
-		t.Log(err)
-		t.Fail()
+		t.Fatal(err)
 	}
 	if len(functions) == 0 {
-		t.Log("List functions got: 0, want: > 0")
-		t.Fail()
+		t.Fatal("List functions got: 0, want: > 0")
 	}
 }
 
 func get(t *testing.T, name string) requests.Function {
-	gwURL, urlErr := url.Parse(os.Getenv("gateway_url"))
-
-	if urlErr != nil {
-		t.Fatal(urlErr)
-	}
-
-	gwURL.Path = fmt.Sprintf("/system/function/%s", name)
-
-	bytesOut, res, err := httpReq(gwURL.String(), http.MethodGet, nil)
-	if err != nil {
-		t.Log(err)
-		t.Fail()
-	}
-
-	if res.StatusCode != 200 {
-		t.Logf("got %d, wanted %d", res.StatusCode, 200)
-		t.Fail()
+	gwURL := gatewayUrl(t, path.Join("system", "function", name), "")
+	bytesOut, res := request(t, gwURL, http.MethodGet, nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("got %d, wanted %d", res.StatusCode, http.StatusOK)
 	}
 
 	function := requests.Function{}
-	err = json.Unmarshal(bytesOut, &function)
+	err := json.Unmarshal(bytesOut, &function)
 	if err != nil {
-		t.Log(err)
-		t.Fail()
+		t.Fatal(err)
 	}
 
 	return function
