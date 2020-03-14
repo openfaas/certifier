@@ -11,7 +11,7 @@ import (
 )
 
 func Test_InvokeNotFound(t *testing.T) {
-	invoke(t, "notfound", emptyQueryString, http.StatusNotFound, http.StatusBadGateway)
+	_ = invoke(t, "notfound", emptyQueryString, http.StatusNotFound, http.StatusBadGateway)
 }
 
 func Test_Invoke_With_Supported_Verbs(t *testing.T) {
@@ -24,16 +24,9 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 		EnvVars:    envVars,
 	}
 
-	deployStatus, deployErr := deploy(t, functionRequest)
-	if deployErr != nil {
-		t.Log(deployErr.Error())
-		t.Fail()
-		return
-	}
-
+	deployStatus := deploy(t, functionRequest)
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Logf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-		t.Fail()
+		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 		return
 	}
 
@@ -56,8 +49,7 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 
 			out := string(bytesOut)
 			if !v.match(out) {
-				t.Logf("want: %s, got: %s", fmt.Sprintf("Http_Method=%s", v.verb), out)
-				t.Fail()
+				t.Fatalf("want: %s, got: %s", fmt.Sprintf("Http_Method=%s", v.verb), out)
 			}
 		})
 	}
