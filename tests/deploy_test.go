@@ -1,11 +1,9 @@
 package tests
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 	"testing"
 
@@ -155,51 +153,6 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	if err := strMapEqual("annotations", *function.Annotations, wantedAnnotations); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) int {
-	t.Helper()
-
-	gwURL := gatewayUrl(t, "/system/functions", "")
-	body, res := request(t, gwURL, http.MethodPost, makeReader(createRequest))
-	if res.StatusCode >= 400 {
-		t.Fatalf("unable to deploy function: %s", string(body))
-	}
-
-	return res.StatusCode
-}
-
-func list(t *testing.T, expectedStatusCode int) {
-	gwURL := gatewayUrl(t, "/system/functions", "")
-	bytesOut, res := request(t, gwURL, http.MethodGet, nil)
-	if res.StatusCode != expectedStatusCode {
-		t.Fatalf("got %d, wanted %d", res.StatusCode, expectedStatusCode)
-	}
-
-	functions := []requests.Function{}
-	err := json.Unmarshal(bytesOut, &functions)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(functions) == 0 {
-		t.Fatal("List functions got: 0, want: > 0")
-	}
-}
-
-func get(t *testing.T, name string) requests.Function {
-	gwURL := gatewayUrl(t, path.Join("system", "function", name), "")
-	bytesOut, res := request(t, gwURL, http.MethodGet, nil)
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("got %d, wanted %d", res.StatusCode, http.StatusOK)
-	}
-
-	function := requests.Function{}
-	err := json.Unmarshal(bytesOut, &function)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return function
 }
 
 func strMapEqual(mapName string, got map[string]string, wanted map[string]string) error {
