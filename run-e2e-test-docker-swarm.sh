@@ -1,12 +1,16 @@
 #!/bin/sh
 
+
 if ! [ -x "$(command -v docker)" ]; then
   echo 'Unable to find docker command, please install Docker (https://www.docker.com/) and retry' >&2
   exit 1
 fi
 
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
 export IP=127.0.0.1
-# setup docker swarm 
+# setup docker swarm
 docker swarm init
 git clone https://github.com/openfaas/faas.git
 cd faas && echo "$(pwd)" && ./deploy_stack.sh --no-auth && cd ..
