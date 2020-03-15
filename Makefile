@@ -1,17 +1,14 @@
 OPENFAAS_URL?=http://127.0.0.1:8080/
 SECRET?=tDsdf7sFT45gs8D3gDGhg54
 
+.TEST_FUNCTIONS = stronghash env-test env-test-annotations env-test-labels env-test-verbs test-secret test-secret-crud test-min-scale test-scale-from-zero test-throughput-scaling
+
 clean-swarm:
-	-  docker service rm stronghash env-test env-test-labels env-test-annotations env-test-verbs test-secret test-secret-crud; docker secret rm secret-api-test-key 
+	- docker service rm ${.TEST_FUNCTIONS}; docker secret rm secret-api-test-key
 
 clean-kubernetes:
-	- kubectl delete -n openfaas-fn deploy/stronghash || : ; kubectl delete -n openfaas-fn svc/stronghash || :
-	- kubectl delete -n openfaas-fn deploy/env-test || :; kubectl delete -n openfaas-fn svc/env-test || :
-	- kubectl delete -n openfaas-fn deploy/env-test-annotations || : ; kubectl delete -n openfaas-fn svc/env-test-annotations || :
-	- kubectl delete -n openfaas-fn deploy/env-test-labels || : ; kubectl delete -n openfaas-fn svc/env-test-labels || :
-	- kubectl delete -n openfaas-fn deploy/env-test-verbs  || :; kubectl delete -n openfaas-fn svc/env-test-verbs || :
-	- kubectl delete -n openfaas-fn deploy/test-secret  || :; kubectl delete -n openfaas-fn svc/test-secret || :
-	- kubectl delete -n openfaas-fn deploy/test-secret-crud  || :; kubectl delete -n openfaas-fn svc/test-secret-crud || :
+	- kubectl delete -n openfaas-fn deploy,svc ${.TEST_FUNCTIONS} 2>/dev/null || : ;
+
 
 .EXPORT_ALL_VARIABLES:
 secrets-swarm:
@@ -20,8 +17,10 @@ secrets-swarm:
 secrets-kubernetes:
 	./create-kubernetes-secret.sh
 
-test-swarm: clean-swarm secrets-swarm 
-	gateway_url=${OPENFAAS_URL} time go test -count=1 ./tests -v -swarm
+.TEST_FLAGS= # additional test flags, e.g. -run ^Test_ScaleFromZeroDuringIvoke$
+
+test-swarm: clean-swarm secrets-swarm
+	gateway_url=${OPENFAAS_URL} time go test -count=1 ./tests -v -swarm ${.TEST_FLAGS}
 
 test-kubernetes: secrets-kubernetes clean-kubernetes
-	gateway_url=${OPENFAAS_URL} time go test -count=1 ./tests -v
+	gateway_url=${OPENFAAS_URL} time go test -count=1 ./tests -v ${.TEST_FLAGS}
