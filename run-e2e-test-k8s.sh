@@ -5,6 +5,9 @@ if ! [ -x "$(command -v docker)" ]; then
   exit 1
 fi
 
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
 export IP=127.0.0.1
 export USER_NAME=$(whoami)
 export KUBECONFIG_FOLDER_PATH=/home/$USER_NAME/.kube
@@ -19,7 +22,8 @@ cp `pwd`/kubeconfig $KUBECONFIG_PATH
 export KUBECONFIG=$KUBECONFIG_PATH
 
 # disable basic auth
-k3sup app install openfaas --basic-auth=false
+curl -sLS https://dl.get-arkade.dev | sudo sh
+arkade install openfaas --basic-auth=false
 
 # run test in k3s
 sleep 60
