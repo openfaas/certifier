@@ -4,7 +4,7 @@ SECRET?=tDsdf7sFT45gs8D3gDGhg54
 .TEST_FUNCTIONS = stronghash env-test env-test-annotations env-test-labels env-test-verbs test-secret test-secret-crud test-min-scale test-scale-from-zero test-throughput-scaling test-scaling-disabled test-scaling-to-zero
 
 clean-swarm:
-	- docker service rm ${.TEST_FUNCTIONS}; docker secret rm secret-api-test-key
+	- docker service rm ${.TEST_FUNCTIONS}; docker secret rm secret-api-test-key || : ;
 
 clean-kubernetes:
 	- kubectl delete -n openfaas-fn deploy,svc ${.TEST_FUNCTIONS} 2>/dev/null || : ;
