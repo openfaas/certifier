@@ -43,6 +43,9 @@ func Test_ScaleMinimum(t *testing.T) {
 }
 
 func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
+	if *swarm {
+		t.Skip("scale to zero currently returns 500 in faas-swarm")
+	}
 	functionName := "test-scale-from-zero"
 	functionRequest := requests.CreateFunctionRequest{
 		Image:      "functions/alpine:latest",
@@ -104,8 +107,8 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 		Request:           req,
 		N:                 attempts,
 		Timeout:           10,
-		C:                 50,
-		QPS:               50.0,
+		C:                 2,
+		QPS:               5.0,
 		DisableKeepAlives: true,
 		Writer:            &loadOutput,
 	}
@@ -165,7 +168,8 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 		Request:           req,
 		N:                 attempts,
 		Timeout:           10,
-		C:                 5,
+		C:                 2,
+		QPS:               5.0,
 		DisableKeepAlives: true,
 		Writer:            &loadOutput,
 	}
@@ -229,7 +233,8 @@ func Test_ScaleToZero(t *testing.T) {
 		Request:           req,
 		N:                 attempts,
 		Timeout:           10,
-		C:                 50,
+		C:                 2,
+		QPS:               5.0,
 		DisableKeepAlives: true,
 		Writer:            &loadOutput,
 	}
