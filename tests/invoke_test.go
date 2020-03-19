@@ -7,7 +7,7 @@ import (
 
 	"fmt"
 
-	"github.com/openfaas/faas/gateway/requests"
+	types "github.com/openfaas/faas-provider/types"
 )
 
 func Test_InvokeNotFound(t *testing.T) {
@@ -16,7 +16,7 @@ func Test_InvokeNotFound(t *testing.T) {
 
 func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	envVars := map[string]string{}
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    "env-test-verbs",
 		Network:    "func_functions",

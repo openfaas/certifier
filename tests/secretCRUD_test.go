@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/openfaas/faas-provider/types"
-	"github.com/openfaas/faas/gateway/requests"
 )
 
 var secretsPath = "system/secrets"
@@ -27,7 +26,7 @@ func Test_SecretCRUD(t *testing.T) {
 	t.Logf("Got correct response for creating secret: %d", createStatus)
 
 	// Set up and deploy function that reads the value of the created secret.
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    functionName,
 		Network:    "func_functions",
@@ -69,7 +68,7 @@ func Test_SecretCRUD(t *testing.T) {
 	}
 
 	// Function needs to be deleted to free up the secret so it can also be deleted.
-	delFunctionRequest := requests.DeleteFunctionRequest{
+	delFunctionRequest := deleteFunctionRequest{
 		FunctionName: functionName,
 	}
 
