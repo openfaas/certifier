@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openfaas/faas/gateway/requests"
+	types "github.com/openfaas/faas-provider/types"
 )
 
 var emptyQueryString = ""
@@ -15,7 +15,7 @@ var emptyQueryString = ""
 func Test_Access_Secret(t *testing.T) {
 	secret := os.Getenv("SECRET")
 	secrets := []string{"secret-api-test-key"}
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    "test-secret",
 		Network:    "func_functions",
@@ -43,7 +43,7 @@ func Test_Access_Secret(t *testing.T) {
 
 func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    "stronghash",
 		Network:    "func_functions",
@@ -63,7 +63,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	envVars := map[string]string{}
 	envVars["custom_env"] = "custom_env_value"
 
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    "env-test",
 		Network:    "func_functions",
@@ -104,7 +104,7 @@ func Test_Deploy_WithLabels(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    "env-test-labels",
 		Network:    "func_functions",
@@ -133,7 +133,7 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:       "functions/alpine:latest",
 		Service:     "env-test-annotations",
 		Network:     "func_functions",

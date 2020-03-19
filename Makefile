@@ -1,6 +1,8 @@
 OPENFAAS_URL?=http://127.0.0.1:8080/
 SECRET?=tDsdf7sFT45gs8D3gDGhg54
 
+GOFLAGS := -mod=vendor
+
 .TEST_FUNCTIONS = stronghash env-test env-test-annotations env-test-labels env-test-verbs test-secret test-secret-crud test-min-scale test-scale-from-zero test-throughput-scaling test-scaling-disabled test-scaling-to-zero
 
 clean-swarm:

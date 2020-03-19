@@ -10,8 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openfaas/faas/gateway/requests"
-
+	types "github.com/openfaas/faas-provider/types"
 	"github.com/rakyll/hey/requester"
 )
 
@@ -21,7 +20,7 @@ func Test_ScaleMinimum(t *testing.T) {
 	labels := map[string]string{
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 	}
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    functionName,
 		Network:    "func_functions",
@@ -47,7 +46,7 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 		t.Skip("scale to zero currently returns 500 in faas-swarm")
 	}
 	functionName := "test-scale-from-zero"
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    functionName,
 		Network:    "func_functions",
@@ -80,7 +79,7 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
 	}
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    functionName,
 		Network:    "func_functions",
@@ -141,7 +140,7 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
 	}
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    functionName,
 		Network:    "func_functions",
@@ -206,7 +205,7 @@ func Test_ScaleToZero(t *testing.T) {
 		"com.openfaas.scale.max":  fmt.Sprintf("%d", maxReplicas),
 		"com.openfaas.scale.zero": "true",
 	}
-	functionRequest := requests.CreateFunctionRequest{
+	functionRequest := types.FunctionDeployment{
 		Image:      "functions/alpine:latest",
 		Service:    functionName,
 		Network:    "func_functions",

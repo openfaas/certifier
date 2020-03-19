@@ -6,10 +6,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/openfaas/faas/gateway/requests"
+	"github.com/openfaas/faas-provider/types"
 )
 
-func deploy(t *testing.T, createRequest requests.CreateFunctionRequest) int {
+func deploy(t *testing.T, createRequest types.FunctionDeployment) int {
 	t.Helper()
 
 	gwURL := gatewayUrl(t, "/system/functions", "")
@@ -28,7 +28,7 @@ func list(t *testing.T, expectedStatusCode int) {
 		t.Fatalf("got %d, wanted %d", res.StatusCode, expectedStatusCode)
 	}
 
-	functions := []requests.Function{}
+	functions := []types.FunctionStatus{}
 	err := json.Unmarshal(bytesOut, &functions)
 	if err != nil {
 		t.Fatal(err)
@@ -38,14 +38,14 @@ func list(t *testing.T, expectedStatusCode int) {
 	}
 }
 
-func get(t *testing.T, name string) requests.Function {
+func get(t *testing.T, name string) types.FunctionStatus {
 	gwURL := gatewayUrl(t, path.Join("system", "function", name), "")
 	bytesOut, res := request(t, gwURL, http.MethodGet, nil)
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("got %d, wanted %d", res.StatusCode, http.StatusOK)
 	}
 
-	function := requests.Function{}
+	function := types.FunctionStatus{}
 	err := json.Unmarshal(bytesOut, &function)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func deleteFunction(t *testing.T, name string) {
 	t.Helper()
 
 	gwURL := gatewayUrl(t, "/system/functions", "")
-	payload := makeReader(requests.DeleteFunctionRequest{FunctionName: name})
+	payload := makeReader(deleteFunctionRequest{FunctionName: name})
 	_, res := request(t, gwURL, http.MethodDelete, payload)
 	if res.StatusCode != http.StatusAccepted {
 		t.Fatalf("delete got %d, wanted %d", res.StatusCode, http.StatusAccepted)
