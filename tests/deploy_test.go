@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 
@@ -11,35 +10,6 @@ import (
 )
 
 var emptyQueryString = ""
-
-func Test_Access_Secret(t *testing.T) {
-	secret := os.Getenv("SECRET")
-	secrets := []string{"secret-api-test-key"}
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    "test-secret",
-		Network:    "func_functions",
-		EnvProcess: "cat /var/openfaas/secrets/secret-api-test-key",
-		Secrets:    secrets,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	list(t, http.StatusOK)
-
-	t.Run("Empty QueryString", func(t *testing.T) {
-
-		bytesOut := invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
-
-		out := strings.TrimSuffix(string(bytesOut), "\n")
-		if out != secret {
-			t.Fatalf("want: %q, got: %q", secret, out)
-		}
-	})
-}
 
 func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
