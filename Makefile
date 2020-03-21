@@ -19,6 +19,10 @@ secrets-swarm:
 secrets-kubernetes:
 	./create-kubernetes-secret.sh
 
+lint:
+	@golangci-lint version
+	golangci-lint run --timeout=1m ./...
+
 .TEST_FLAGS= # additional test flags, e.g. -run ^Test_ScaleFromZeroDuringIvoke$
 
 test-swarm: clean-swarm secrets-swarm
