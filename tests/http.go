@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -40,6 +41,11 @@ func makeReader(input interface{}) *bytes.Buffer {
 
 func request(t *testing.T, url, method string, reader io.Reader) ([]byte, *http.Response) {
 	t.Helper()
+	return requestContext(t, context.Background(), url, method, reader)
+}
+
+func requestContext(t *testing.T, ctx context.Context, url, method string, reader io.Reader) ([]byte, *http.Response) {
+	t.Helper()
 
 	c := http.Client{}
 
@@ -47,6 +53,8 @@ func request(t *testing.T, url, method string, reader io.Reader) ([]byte, *http.
 	if makeReqErr != nil {
 		t.Fatalf("error with request %s ", makeReqErr)
 	}
+
+	req = req.WithContext(ctx)
 
 	res, callErr := c.Do(req)
 	if callErr != nil {
