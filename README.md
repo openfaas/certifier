@@ -31,6 +31,26 @@ make test-swarm
 
 You will need to have access to `docker` for creating and cleaning-up of state.
 
+## Development
+
+While developing the `certifier`, we generally run/test the `certifier` locally using `faas-netes`.  The cleanest way to do this is using an throw-away cluster using [KinD](https://github.com/kubernetes-sigs/kind) and [arkade](https://github.com/alexellis/arkade)
+
+```sh
+kind create cluster
+arkade install openfaas --basic-auth=false
+kubectl port-forward -n openfaas svc/gateway 8080:8080 &
+export OPENFAAS_URL=http://127.0.0.1:8080/
+make test-kubernetes
+```
+
+When you are done, you can stop the port-forward and clean up the cluster using
+
+```sh
+pkill kubectl
+kind delete cluster
+```
+
+
 ## Status
 
 This is a work-in-progress and attempts to cover the basic scenarios of operating an OpenFaaS provider.
