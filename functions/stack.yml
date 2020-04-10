@@ -1,0 +1,16 @@
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://127.0.0.1:8080
+
+configuration:
+  templates:
+    - name: golang-middleware
+      source: https://github.com/openfaas-incubator/golang-http-template
+
+functions:
+  redirector:
+    lang: golang-middleware
+    handler: ./redirector
+    image: theaxer/redirector:latest
+
