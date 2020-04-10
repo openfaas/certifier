@@ -125,6 +125,22 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	}
 }
 
+func Test_Deploy_RejectsFunctionWithMissingRequiredSecret(t *testing.T) {
+	functionRequest := types.FunctionDeployment{
+		Image:      "functions/alpine:latest",
+		Service:    "test-secret-crud",
+		Network:    "func_functions",
+		EnvProcess: "cat /var/openfaas/secrets/secret-name",
+		Secrets:    []string{"does-not-exist-secret"},
+	}
+
+	gwURL := gatewayUrl(t, "/system/functions", "")
+	_, res := request(t, gwURL, http.MethodPost, makeReader(functionRequest))
+	if res.StatusCode != http.StatusBadRequest {
+		t.Errorf("got %d, wanted %d", res.StatusCode, http.StatusBadRequest)
+	}
+}
+
 func strMapEqual(mapName string, got map[string]string, wanted map[string]string) error {
 	// Can't assert length is equal as some providers i.e. faas-swarm add their own labels during
 	// deployment like 'com.openfaas.function' and 'function'
