@@ -28,9 +28,11 @@ lint:
 	golangci-lint run --timeout=1m ./...
 
 .TEST_FLAGS= # additional test flags, e.g. -run ^Test_ScaleFromZeroDuringIvoke$
+.FEATURE_FLAGS= # set config feature flags, e.g. -swarm
 
 test-swarm: clean-swarm
-	gateway_url=${OPENFAAS_URL} time go test -count=1 ./tests -v -swarm ${.TEST_FLAGS}
+	.FEATURE_FLAGS="-swarm ${.FEATURE_FLAGS}"
+	time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
 
 test-kubernetes: clean-kubernetes
-	gateway_url=${OPENFAAS_URL} time go test -count=1 ./tests -v ${.TEST_FLAGS}
+	time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
