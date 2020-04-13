@@ -13,12 +13,6 @@ import (
 	"testing"
 )
 
-// todo update faas-provider to have the last remaining request objects and then
-// use that instead
-type deleteFunctionRequest struct {
-	FunctionName string `json:"functionName"`
-}
-
 // gatewayUrl safely constructs the API url based on the `gateway_url`
 // in the ENV.
 func gatewayUrl(t *testing.T, reqPath, query string) string {
