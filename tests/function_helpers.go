@@ -1,52 +1,47 @@
 package tests
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
 	"path"
 	"testing"
 
+	faasSDK "github.com/openfaas/faas-cli/proxy"
 	"github.com/openfaas/faas-provider/types"
 )
 
-func deploy(t *testing.T, createRequest types.FunctionDeployment) int {
+func deploy(t *testing.T, createRequest *faasSDK.DeployFunctionSpec) int {
 	t.Helper()
+	gwURL := gatewayUrl(t, "", "")
 
-	gwURL := gatewayUrl(t, "/system/functions", "")
-	body, res := request(t, gwURL, http.MethodPost, makeReader(createRequest))
-	if res.StatusCode >= 400 {
-		t.Fatalf("unable to deploy function: %s", string(body))
+	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	statusCode := client.DeployFunction(context.Background(), createRequest)
+	if statusCode >= 400 {
+		t.Fatalf("unable to deploy function: %d", statusCode)
 	}
 
-	return res.StatusCode
+	return statusCode
 }
 
 func list(t *testing.T, expectedStatusCode int) {
-	gwURL := gatewayUrl(t, "/system/functions", "")
-	bytesOut, res := request(t, gwURL, http.MethodGet, nil)
-	if res.StatusCode != expectedStatusCode {
-		t.Fatalf("got %d, wanted %d", res.StatusCode, expectedStatusCode)
-	}
+	gwURL := gatewayUrl(t, "", "")
 
-	functions := []types.FunctionStatus{}
-	err := json.Unmarshal(bytesOut, &functions)
+	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	functions, err := client.ListFunctions(context.Background(), defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(functions) == 0 {
 		t.Fatal("List functions got: 0, want: > 0")
 	}
 }
 
 func get(t *testing.T, name string) types.FunctionStatus {
-	gwURL := gatewayUrl(t, path.Join("system", "function", name), "")
-	bytesOut, res := request(t, gwURL, http.MethodGet, nil)
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("got %d, wanted %d", res.StatusCode, http.StatusOK)
-	}
+	gwURL := gatewayUrl(t, "", "")
 
-	function := types.FunctionStatus{}
-	err := json.Unmarshal(bytesOut, &function)
+	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	function, err := client.GetFunctionInfo(context.Background(), name, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,12 +51,12 @@ func get(t *testing.T, name string) types.FunctionStatus {
 
 func deleteFunction(t *testing.T, name string) {
 	t.Helper()
+	gwURL := gatewayUrl(t, "", "")
 
-	gwURL := gatewayUrl(t, "/system/functions", "")
-	payload := makeReader(deleteFunctionRequest{FunctionName: name})
-	_, res := request(t, gwURL, http.MethodDelete, payload)
-	if res.StatusCode != http.StatusAccepted {
-		t.Fatalf("delete got %d, wanted %d", res.StatusCode, http.StatusAccepted)
+	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	err := client.DeleteFunction(context.Background(), name, defaultNamespace)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

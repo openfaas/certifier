@@ -6,19 +6,19 @@ import (
 	"strings"
 	"testing"
 
-	types "github.com/openfaas/faas-provider/types"
+	faasSDK "github.com/openfaas/faas-cli/proxy"
 )
 
 var emptyQueryString = ""
 
 func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    "stronghash",
-		Network:    "func_functions",
-		EnvProcess: "sha512sum",
-		EnvVars:    envVars,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: "stronghash",
+		Network:      "func_functions",
+		FProcess:     "sha512sum",
+		EnvVars:      envVars,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -33,12 +33,12 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	envVars := map[string]string{}
 	envVars["custom_env"] = "custom_env_value"
 
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    "env-test",
-		Network:    "func_functions",
-		EnvProcess: "env",
-		EnvVars:    envVars,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: "env-test",
+		Network:      "func_functions",
+		FProcess:     "env",
+		EnvVars:      envVars,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -49,8 +49,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	list(t, http.StatusOK)
 
 	t.Run("Empty QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
-
+		bytesOut := invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
 		out := string(bytesOut)
 		if strings.Contains(out, "custom_env") == false {
 			t.Fatalf("want: %s, got: %s", "custom_env", out)
@@ -58,8 +57,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	})
 
 	t.Run("Populated QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.Service, "testing=1", http.StatusOK)
-
+		bytesOut := invoke(t, functionRequest.FunctionName, "testing=1", http.StatusOK)
 		out := string(bytesOut)
 		if strings.Contains(out, "Http_Query=testing=1") == false {
 			t.Fatalf("want: %s, got: %s", "Http_Query=testing=1", out)
@@ -74,13 +72,13 @@ func Test_Deploy_WithLabels(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    "env-test-labels",
-		Network:    "func_functions",
-		EnvProcess: "env",
-		Labels:     &wantedLabels,
-		EnvVars:    envVars,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: "env-test-labels",
+		Network:      "func_functions",
+		FProcess:     "env",
+		Labels:       wantedLabels,
+		EnvVars:      envVars,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -88,9 +86,8 @@ func Test_Deploy_WithLabels(t *testing.T) {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	_ = invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
-	function := get(t, functionRequest.Service)
-
+	_ = invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
+	function := get(t, functionRequest.FunctionName)
 	if err := strMapEqual("labels", *function.Labels, wantedLabels); err != nil {
 		t.Fatal(err)
 	}
@@ -103,13 +100,13 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	functionRequest := types.FunctionDeployment{
-		Image:       "functions/alpine:latest",
-		Service:     "env-test-annotations",
-		Network:     "func_functions",
-		EnvProcess:  "env",
-		Annotations: &wantedAnnotations,
-		EnvVars:     envVars,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: "env-test-annotations",
+		Network:      "func_functions",
+		FProcess:     "env",
+		Annotations:  wantedAnnotations,
+		EnvVars:      envVars,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -117,9 +114,8 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	_ = invoke(t, functionRequest.Service, emptyQueryString, http.StatusOK)
-	function := get(t, functionRequest.Service)
-
+	_ = invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
+	function := get(t, functionRequest.FunctionName)
 	if err := strMapEqual("annotations", *function.Annotations, wantedAnnotations); err != nil {
 		t.Fatal(err)
 	}
