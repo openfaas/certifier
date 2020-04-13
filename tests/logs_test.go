@@ -1,27 +1,23 @@
 package tests
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"path"
 	"strings"
 	"testing"
 	"time"
 
+	faasSDK "github.com/openfaas/faas-cli/proxy"
 	"github.com/openfaas/faas-provider/logs"
-	"github.com/openfaas/faas-provider/types"
 )
 
 func Test_FunctionLogs(t *testing.T) {
 	functionName := "test-logger"
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    functionName,
-		Network:    "func_functions",
-		EnvProcess: "sha512sum",
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: functionName,
+		Network:      "func_functions",
+		FProcess:     "sha512sum",
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -36,29 +32,33 @@ func Test_FunctionLogs(t *testing.T) {
 	// - Wrote 132 Bytes - Duration: ...
 	_ = invoke(t, functionName, "", http.StatusOK)
 
-	query := fmt.Sprintf("name=%s&tail=%d&follow=false", functionName, 2)
-	gwURL := gatewayUrl(t, path.Join("system", "logs"), query)
+	logRequest := logs.Request{Name: functionName, Tail: 2, Follow: false}
+	gwURL := gatewayUrl(t, "", "")
 
 	// use context with timeout here to ensure we don't hang waiting for logs too long
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	logJSON, resp := requestContext(t, ctx, gwURL, http.MethodGet, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("got status code %d, expected 200", resp.StatusCode)
+	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	logChan, err := client.GetLogs(ctx, logRequest)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	stream := json.NewDecoder(bytes.NewReader(logJSON))
+	// var b strings.Builder
+	// for v := range logChan {
+	// 	for _, line := range strings.Split(strings.TrimSuffix(v.Text, "\n"), "\n") {
+	// 		b.WriteString(line + "\n")
+	// 	}
+	// }
+	// logMessage := strings.TrimRight(b.String(), "\n")
+
+	// stream := json.NewDecoder(bytes.NewReader([]byte(logMessage)))
 	logLines := []logs.Message{}
 
 	expectedTextA := "Forking fprocess"
 	expectedTextB := "Wrote 132 Bytes"
-	for stream.More() {
-		msg := logs.Message{}
-		err := stream.Decode(&msg)
-		if err != nil {
-			t.Fatalf("failed to parse log message %s", err)
-		}
+	for msg := range logChan {
 
 		if msg.Name != functionName {
 			t.Fatalf("got function name %s, expected %s", msg.Name, functionName)

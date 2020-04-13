@@ -1,57 +1,62 @@
 package tests
 
 import (
-	"encoding/json"
-	"net/http"
-	"path"
+	"context"
 	"testing"
 
 	// please only use the gateway types in this test
 	// other other tests should use the provider types
-	gwtypes "github.com/openfaas/faas/gateway/types"
+	faasSDK "github.com/openfaas/faas-cli/proxy"
 )
 
 func Test_ProviderInfo(t *testing.T) {
-	gwURL := gatewayUrl(t, path.Join("system", "info"), "")
-	payload, resp := request(t, gwURL, http.MethodGet, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("got status code %d, expected 200", resp.StatusCode)
-	}
+	gwURL := gatewayUrl(t, "", "")
 
-	info := gwtypes.GatewayInfo{}
-	err := json.Unmarshal(payload, &info)
+	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	systeminfo, err := client.GetSystemInfo(context.Background())
+
 	if err != nil {
-		t.Logf(string(payload))
-		t.Fatalf("unexpected error unmarshaling provider info: %s", err)
+		t.Fatal(err)
 	}
 
-	if info.Provider == nil {
-		t.Fatal("provider info may not be nil")
+	p, ok := systeminfo["provider"]
+	if !ok {
+		t.Fatal("provider info should be present")
 	}
+	provider := p.(map[string]interface{})
 
-	if info.Provider.Orchestration == "" {
+	if orch, ok := provider["orchestration"]; !ok || orch.(string) == "" {
 		t.Fatal("provider orchestration name may not be empty")
 	}
 
-	if info.Provider.Name == "" {
+	if name, ok := provider["provider"]; !ok || name.(string) == "" {
 		t.Fatal("provider name may not be empty")
 	}
 
-	if info.Provider.Version.Release == "" {
+	pv, ok := provider["version"]
+	if !ok {
+		t.Fatal("provider version cannot be empty")
+	}
+	providerVersion := pv.(map[string]interface{})
+	if release, ok := providerVersion["release"]; !ok || release.(string) == "" {
 		t.Fatal("provider version release may not be empty")
 	}
-	if info.Provider.Version.SHA == "" {
+	if sha, ok := providerVersion["sha"]; !ok || sha.(string) == "" {
 		t.Fatal("provider version sha may not be empty")
 	}
 
-	if info.Version == nil {
+	v, ok := systeminfo["version"]
+	version := v.(map[string]interface{})
+
+	if !ok {
 		t.Fatal("gateway version may not be nil")
 	}
 
-	if info.Version.Release == "" {
+	if release, ok := version["release"]; !ok || release.(string) == "" {
 		t.Fatal("gateway version release may not be empty")
 	}
-	if info.Version.SHA == "" {
+
+	if sha, ok := version["sha"]; !ok || sha.(string) == "" {
 		t.Fatal("gateway version sha may not be empty")
 	}
 

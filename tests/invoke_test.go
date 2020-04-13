@@ -7,21 +7,21 @@ import (
 
 	"fmt"
 
-	types "github.com/openfaas/faas-provider/types"
+	faasSDK "github.com/openfaas/faas-cli/proxy"
 )
 
 func Test_InvokeNotFound(t *testing.T) {
-	_ = invoke(t, "notfound", emptyQueryString, http.StatusNotFound, http.StatusBadGateway)
+	_ = invoke(t, "notfound", "", http.StatusNotFound, http.StatusBadGateway)
 }
 
 func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	envVars := map[string]string{}
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    "env-test-verbs",
-		Network:    "func_functions",
-		EnvProcess: "env",
-		EnvVars:    envVars,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: "env-test-verbs",
+		Network:      "func_functions",
+		FProcess:     "env",
+		EnvVars:      envVars,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -45,7 +45,8 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 
 	for _, v := range verbs {
 		t.Run(v.verb, func(t *testing.T) {
-			bytesOut := invokeWithVerb(t, v.verb, functionRequest.Service, emptyQueryString, http.StatusOK)
+
+			bytesOut := invokeWithVerb(t, v.verb, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
 
 			out := string(bytesOut)
 			if !v.match(out) {

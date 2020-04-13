@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	types "github.com/openfaas/faas-provider/types"
+	faasSDK "github.com/openfaas/faas-cli/proxy"
 	"github.com/rakyll/hey/requester"
 )
 
@@ -20,12 +20,12 @@ func Test_ScaleMinimum(t *testing.T) {
 	labels := map[string]string{
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 	}
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    functionName,
-		Network:    "func_functions",
-		EnvProcess: "sha512sum",
-		Labels:     &labels,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: functionName,
+		Network:      "func_functions",
+		FProcess:     "sha512sum",
+		Labels:       labels,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -46,11 +46,11 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 		t.Skip("scale to zero currently returns 500 in faas-swarm")
 	}
 	functionName := "test-scale-from-zero"
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    functionName,
-		Network:    "func_functions",
-		EnvProcess: "sha512sum",
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: functionName,
+		Network:      "func_functions",
+		FProcess:     "sha512sum",
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -79,12 +79,12 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
 	}
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    functionName,
-		Network:    "func_functions",
-		EnvProcess: "sha512sum",
-		Labels:     &labels,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: functionName,
+		Network:      "func_functions",
+		FProcess:     "sha512sum",
+		Labels:       labels,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -140,12 +140,12 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
 	}
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    functionName,
-		Network:    "func_functions",
-		EnvProcess: "sha512sum",
-		Labels:     &labels,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: functionName,
+		Network:      "func_functions",
+		FProcess:     "sha512sum",
+		Labels:       labels,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -205,12 +205,12 @@ func Test_ScaleToZero(t *testing.T) {
 		"com.openfaas.scale.max":  fmt.Sprintf("%d", maxReplicas),
 		"com.openfaas.scale.zero": "true",
 	}
-	functionRequest := types.FunctionDeployment{
-		Image:      "functions/alpine:latest",
-		Service:    functionName,
-		Network:    "func_functions",
-		EnvProcess: "sha512sum",
-		Labels:     &labels,
+	functionRequest := &faasSDK.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: functionName,
+		Network:      "func_functions",
+		FProcess:     "sha512sum",
+		Labels:       labels,
 	}
 
 	deployStatus := deploy(t, functionRequest)
