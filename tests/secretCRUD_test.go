@@ -10,10 +10,7 @@ import (
 	"github.com/openfaas/faas-provider/types"
 )
 
-var secretsPath = "system/secrets"
 var swarm = flag.Bool("swarm", false, "run swarm-compatible tests only")
-
-type secret types.Secret
 
 func Test_SecretCRUD(t *testing.T) {
 	setValue := "this-is-the-secret-value"
