@@ -2,7 +2,6 @@ package tests
 
 import (
 	"context"
-	"flag"
 	"net/http"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 	"github.com/openfaas/faas-provider/types"
 )
 
-var swarm = flag.Bool("swarm", false, "run swarm-compatible tests only")
+var secretsPath = "system/secrets"
 
 func Test_SecretCRUD(t *testing.T) {
 	setValue := "this-is-the-secret-value"
@@ -59,7 +58,7 @@ func Test_SecretCRUD(t *testing.T) {
 	}
 
 	// Docker Swarm secrets are immutable, so skip the update tests for swarm.
-	if !*swarm {
+	if config.SecretUpdate {
 		newValue := "this-is-the-edited-secret-value"
 		updateStatus, _ := client.UpdateSecret(ctx, types.Secret{Name: setName, Value: newValue})
 		if updateStatus != http.StatusOK && updateStatus != http.StatusAccepted {
@@ -72,6 +71,8 @@ func Test_SecretCRUD(t *testing.T) {
 		if value != setValue {
 			t.Errorf("got %s, wanted %s", value, newValue)
 		}
+	} else {
+		t.Log("secret update skipped")
 	}
 
 	// Function needs to be deleted to free up the secret so it can also be deleted.

@@ -52,6 +52,41 @@ pkill kubectl
 kind delete cluster
 ```
 
+### Running individual tests
+
+The test suite uses the Go test framework, so we can run individual tests by passing the [`-run` flag](https://golang.org/pkg/testing/#hdr-Subtests_and_Sub_benchmarks).
+
+For example,
+
+```sh
+go test -run '^Test_SecretCRUD'
+```
+
+This is exposed in the `Makefile`,
+
+```sh
+make test-kubernetes .TEST_FLAGS='-run ^Test_SecretCRUD'
+```
+
+### Test and Feature flags
+Some providers may not implement all features (yet) or an installation may have disabled a feature (e.g. scale to zero using the faas-idler)
+
+```sh
+  -gateway string
+    	set the gateway URL, if empty use the gateway_url env variable
+  -scaleToZero
+    	enable/disable scale from zero tests (default true)
+  -secretUpdate
+    	enable/disable secret update tests (default true)
+  -swarm
+    	helper flag to run only swarm-compatible tests only
+```
+
+These flags can be passed the the `Makefile` via the `.FEATURE_FLAGS` variable:
+
+```sh
+make test-kubernetes .FEATURE_FLAGS='-scaleToZero=false'
+```
 
 ## Status
 

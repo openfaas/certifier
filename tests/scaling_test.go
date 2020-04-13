@@ -42,7 +42,7 @@ func Test_ScaleMinimum(t *testing.T) {
 }
 
 func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
-	if *swarm {
+	if config.ScaleToZero {
 		t.Skip("scale to zero currently returns 500 in faas-swarm")
 	}
 	functionName := "test-scale-from-zero"

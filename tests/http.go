@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"testing"
 )
@@ -28,7 +27,7 @@ func gatewayURL(t *testing.T) string {
 // in the ENV.
 func resourceURL(t *testing.T, reqPath, query string) string {
 	t.Helper()
-	uri, err := url.Parse(os.Getenv("gateway_url"))
+	uri, err := url.Parse(config.Gateway)
 	if err != nil {
 		t.Fatalf("invalid gateway url %s", err)
 	}
