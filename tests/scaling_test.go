@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	faasSDK "github.com/openfaas/faas-cli/proxy"
+	sdk "github.com/openfaas/faas-cli/proxy"
 	"github.com/rakyll/hey/requester"
 )
 
@@ -20,7 +20,7 @@ func Test_ScaleMinimum(t *testing.T) {
 	labels := map[string]string{
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 	}
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: functionName,
 		Network:      "func_functions",
@@ -46,7 +46,7 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 		t.Skip("scale to zero currently returns 500 in faas-swarm")
 	}
 	functionName := "test-scale-from-zero"
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: functionName,
 		Network:      "func_functions",
@@ -79,7 +79,7 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
 	}
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: functionName,
 		Network:      "func_functions",
@@ -94,7 +94,7 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 
 	defer deleteFunction(t, functionName)
 
-	functionURL := gatewayUrl(t, path.Join("function", functionName), "")
+	functionURL := resourceURL(t, path.Join("function", functionName), "")
 	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
 	if err != nil {
 		t.Fatalf("error with request %s ", err)
@@ -140,7 +140,7 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
 		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
 	}
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: functionName,
 		Network:      "func_functions",
@@ -155,7 +155,7 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 
 	defer deleteFunction(t, functionName)
 
-	functionURL := gatewayUrl(t, path.Join("function", functionName), "")
+	functionURL := resourceURL(t, path.Join("function", functionName), "")
 	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
 	if err != nil {
 		t.Fatalf("error with request %s ", err)
@@ -205,7 +205,7 @@ func Test_ScaleToZero(t *testing.T) {
 		"com.openfaas.scale.max":  fmt.Sprintf("%d", maxReplicas),
 		"com.openfaas.scale.zero": "true",
 	}
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: functionName,
 		Network:      "func_functions",
@@ -220,7 +220,7 @@ func Test_ScaleToZero(t *testing.T) {
 
 	defer deleteFunction(t, functionName)
 
-	functionURL := gatewayUrl(t, path.Join("function", functionName), "")
+	functionURL := resourceURL(t, path.Join("function", functionName), "")
 	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
 	if err != nil {
 		t.Fatalf("error with request %s ", err)

@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-type FaaSAuth struct {
+type Unauthenticated struct {
 }
 
-func (auth *FaaSAuth) Set(req *http.Request) error {
+func (auth *Unauthenticated) Set(req *http.Request) error {
 	return nil
 }
 

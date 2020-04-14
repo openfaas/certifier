@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	faasSDK "github.com/openfaas/faas-cli/proxy"
+	sdk "github.com/openfaas/faas-cli/proxy"
 	"github.com/openfaas/faas-provider/types"
 )
 
@@ -17,8 +17,8 @@ func Test_SecretCRUD(t *testing.T) {
 	setName := "secret-name"
 	functionName := "test-secret-crud"
 
-	gwURL := gatewayUrl(t, "", "")
-	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	gwURL := gatewayURL(t)
+	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
 	ctx := context.Background()
 
 	createStatus, _ := client.CreateSecret(ctx, types.Secret{Name: setName, Value: setValue})
@@ -28,7 +28,7 @@ func Test_SecretCRUD(t *testing.T) {
 	t.Logf("Got correct response for creating secret: %d", createStatus)
 
 	// Set up and deploy function that reads the value of the created secret.
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: functionName,
 		Network:      "func_functions",
