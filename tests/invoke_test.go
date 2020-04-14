@@ -7,7 +7,7 @@ import (
 
 	"fmt"
 
-	faasSDK "github.com/openfaas/faas-cli/proxy"
+	sdk "github.com/openfaas/faas-cli/proxy"
 )
 
 func Test_InvokeNotFound(t *testing.T) {
@@ -16,7 +16,7 @@ func Test_InvokeNotFound(t *testing.T) {
 
 func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	envVars := map[string]string{}
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: "env-test-verbs",
 		Network:      "func_functions",

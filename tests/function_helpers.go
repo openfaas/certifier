@@ -6,15 +6,15 @@ import (
 	"path"
 	"testing"
 
-	faasSDK "github.com/openfaas/faas-cli/proxy"
+	sdk "github.com/openfaas/faas-cli/proxy"
 	"github.com/openfaas/faas-provider/types"
 )
 
-func deploy(t *testing.T, createRequest *faasSDK.DeployFunctionSpec) int {
+func deploy(t *testing.T, createRequest *sdk.DeployFunctionSpec) int {
 	t.Helper()
-	gwURL := gatewayUrl(t, "", "")
+	gwURL := gatewayURL(t)
 
-	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
 	statusCode := client.DeployFunction(context.Background(), createRequest)
 	if statusCode >= 400 {
 		t.Fatalf("unable to deploy function: %d", statusCode)
@@ -24,9 +24,9 @@ func deploy(t *testing.T, createRequest *faasSDK.DeployFunctionSpec) int {
 }
 
 func list(t *testing.T, expectedStatusCode int) {
-	gwURL := gatewayUrl(t, "", "")
+	gwURL := gatewayURL(t)
 
-	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
 	functions, err := client.ListFunctions(context.Background(), defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
@@ -38,9 +38,9 @@ func list(t *testing.T, expectedStatusCode int) {
 }
 
 func get(t *testing.T, name string) types.FunctionStatus {
-	gwURL := gatewayUrl(t, "", "")
+	gwURL := gatewayURL(t)
 
-	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
 	function, err := client.GetFunctionInfo(context.Background(), name, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
@@ -51,9 +51,9 @@ func get(t *testing.T, name string) types.FunctionStatus {
 
 func deleteFunction(t *testing.T, name string) {
 	t.Helper()
-	gwURL := gatewayUrl(t, "", "")
+	gwURL := gatewayURL(t)
 
-	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
 	err := client.DeleteFunction(context.Background(), name, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func deleteFunction(t *testing.T, name string) {
 
 func scaleFunction(t *testing.T, name string, count int) {
 	t.Helper()
-	gwURL := gatewayUrl(t, path.Join("system", "scale-function", name), "")
+	gwURL := resourceURL(t, path.Join("system", "scale-function", name), "")
 	payload := makeReader(map[string]interface{}{"service": name, "replicas": count})
 
 	_, res := request(t, gwURL, http.MethodPost, payload)

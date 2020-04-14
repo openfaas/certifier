@@ -6,13 +6,13 @@ import (
 
 	// please only use the gateway types in this test
 	// other other tests should use the provider types
-	faasSDK "github.com/openfaas/faas-cli/proxy"
+	sdk "github.com/openfaas/faas-cli/proxy"
 )
 
 func Test_ProviderInfo(t *testing.T) {
-	gwURL := gatewayUrl(t, "", "")
+	gwURL := gatewayURL(t)
 
-	client := faasSDK.NewClient(&FaaSAuth{}, gwURL, nil, &timeout)
+	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
 	systeminfo, err := client.GetSystemInfo(context.Background())
 
 	if err != nil {

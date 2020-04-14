@@ -20,7 +20,7 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 
 	breakoutStatus := []int{http.StatusUnauthorized}
 
-	uri := gatewayUrl(t, path.Join("function", name), query)
+	uri := resourceURL(t, path.Join("function", name), query)
 
 	var bytesOut []byte
 	for i := 0; i < attempts; i++ {

@@ -13,9 +13,18 @@ import (
 	"testing"
 )
 
-// gatewayUrl safely constructs the API url based on the `gateway_url`
+// gatewayURL safely constructs the API url based on the `gateway_url`
 // in the ENV.
-func gatewayUrl(t *testing.T, reqPath, query string) string {
+func gatewayURL(t *testing.T) string {
+	t.Helper()
+	uri, err := url.Parse(os.Getenv("gateway_url"))
+	if err != nil {
+		t.Fatalf("invalid gateway url %s", err)
+	}
+	return uri.String()
+}
+
+func resourceURL(t *testing.T, reqPath, query string) string {
 	t.Helper()
 	uri, err := url.Parse(os.Getenv("gateway_url"))
 	if err != nil {
@@ -24,7 +33,6 @@ func gatewayUrl(t *testing.T, reqPath, query string) string {
 
 	uri.Path = path.Join(uri.Path, reqPath)
 	uri.RawQuery = query
-
 	return uri.String()
 }
 

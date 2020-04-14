@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	faasSDK "github.com/openfaas/faas-cli/proxy"
+	sdk "github.com/openfaas/faas-cli/proxy"
 )
 
 var emptyQueryString = ""
 
 func Test_Deploy_Stronghash(t *testing.T) {
 	envVars := map[string]string{}
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: "stronghash",
 		Network:      "func_functions",
@@ -33,7 +33,7 @@ func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
 	envVars := map[string]string{}
 	envVars["custom_env"] = "custom_env_value"
 
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: "env-test",
 		Network:      "func_functions",
@@ -72,7 +72,7 @@ func Test_Deploy_WithLabels(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: "env-test-labels",
 		Network:      "func_functions",
@@ -100,7 +100,7 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	}
 	envVars := map[string]string{}
 
-	functionRequest := &faasSDK.DeployFunctionSpec{
+	functionRequest := &sdk.DeployFunctionSpec{
 		Image:        "functions/alpine:latest",
 		FunctionName: "env-test-annotations",
 		Network:      "func_functions",
