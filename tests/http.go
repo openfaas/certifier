@@ -51,7 +51,11 @@ func request(t *testing.T, url, method string, reader io.Reader) ([]byte, *http.
 func requestContext(t *testing.T, ctx context.Context, url, method string, reader io.Reader) ([]byte, *http.Response) {
 	t.Helper()
 
-	c := http.Client{}
+	c := http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	req, makeReqErr := http.NewRequest(method, url, reader)
 	if makeReqErr != nil {
