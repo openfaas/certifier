@@ -33,14 +33,12 @@ func Test_FunctionLogs(t *testing.T) {
 	_ = invoke(t, functionName, "", http.StatusOK)
 
 	logRequest := logs.Request{Name: functionName, Tail: 2, Follow: false}
-	gwURL := gatewayURL(t)
 
 	// use context with timeout here to ensure we don't hang waiting for logs too long
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
-	logChan, err := client.GetLogs(ctx, logRequest)
+	logChan, err := config.Client.GetLogs(ctx, logRequest)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -25,7 +25,7 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 	var bytesOut []byte
 	for i := 0; i < attempts; i++ {
 
-		bytesOut, res := request(t, uri, verb, nil)
+		bytesOut, res := request(t, uri, verb, nil, nil)
 
 		for _, code := range expectedStatusCode {
 			if res.StatusCode == code {

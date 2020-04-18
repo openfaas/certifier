@@ -10,18 +10,9 @@ import (
 	"net/url"
 	"path"
 	"testing"
-)
 
-// gatewayURL returns valid gateway url from the `gateway_url`
-// in the ENV.
-func gatewayURL(t *testing.T) string {
-	t.Helper()
-	uri, err := url.Parse(os.Getenv("gateway_url"))
-	if err != nil {
-		t.Fatalf("invalid gateway url %s", err)
-	}
-	return uri.String()
-}
+	sdk "github.com/openfaas/faas-cli/proxy"
+)
 
 // resourceURL safely constructs the API url based on the `gateway_url`
 // in the ENV.
@@ -42,12 +33,12 @@ func makeReader(input interface{}) *bytes.Buffer {
 	return bytes.NewBuffer(res)
 }
 
-func request(t *testing.T, url, method string, reader io.Reader) ([]byte, *http.Response) {
+func request(t *testing.T, url, method string, auth sdk.ClientAuth, reader io.Reader) ([]byte, *http.Response) {
 	t.Helper()
-	return requestContext(t, context.Background(), url, method, reader)
+	return requestContext(t, context.Background(), url, method, auth, reader)
 }
 
-func requestContext(t *testing.T, ctx context.Context, url, method string, reader io.Reader) ([]byte, *http.Response) {
+func requestContext(t *testing.T, ctx context.Context, url, method string, auth sdk.ClientAuth, reader io.Reader) ([]byte, *http.Response) {
 	t.Helper()
 
 	c := http.Client{
@@ -59,6 +50,13 @@ func requestContext(t *testing.T, ctx context.Context, url, method string, reade
 	req, makeReqErr := http.NewRequest(method, url, reader)
 	if makeReqErr != nil {
 		t.Fatalf("error with request %s ", makeReqErr)
+	}
+
+	if auth != nil {
+		err := auth.Set(req)
+		if err != nil {
+			t.Fatalf("error setting the request auth %s ", err)
+		}
 	}
 
 	req = req.WithContext(ctx)
