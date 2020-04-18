@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// gatewayURL safely constructs the API url based on the `gateway_url`
+// gatewayURL returns valid gateway url from the `gateway_url`
 // in the ENV.
 func gatewayURL(t *testing.T) string {
 	t.Helper()
@@ -24,6 +24,8 @@ func gatewayURL(t *testing.T) string {
 	return uri.String()
 }
 
+// resourceURL safely constructs the API url based on the `gateway_url`
+// in the ENV.
 func resourceURL(t *testing.T, reqPath, query string) string {
 	t.Helper()
 	uri, err := url.Parse(os.Getenv("gateway_url"))
