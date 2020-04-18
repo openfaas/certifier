@@ -9,16 +9,31 @@ The purpose of this project is to certify that an OpenFaaS provider is doing wha
 
 The tests assume a local environment with basic authentication turned off.
 
+### Auth
+The test _can_ use auth by setting an explicit Bearer token using the `-token` flag or by  reading the CLI config when you set the `-enableAuth` flag.
+
+```sh
+echo -n $PASSWORD | faas-cli login --gateway=$OPENFAAS_URL --username admin --password-stdin
+go test - v ./tests -enableAuth -gateway=$OPENFAAS_URL
+```
+
 ### Kubernetes
 
 Usage with local Kubernetes cluster:
 
-```
+```sh
 export OPENFAAS_URL=http://127.0.0.1:31112/
 make test-kubernetes
 ```
 
 You will need to have access to `kubectl` for creating and cleaning state.
+
+If you have enabled auth in your cluster, first login with the `faas-cli` and then use
+
+```sh
+export OPENFAAS_URL=http://127.0.0.1:31112/
+make test-kubernetes .FEATURE_FLAGS='-enableAuth'
+```
 
 ### Swarm
 
@@ -72,6 +87,8 @@ make test-kubernetes .TEST_FLAGS='-run ^Test_SecretCRUD'
 Some providers may not implement all features (yet) or an installation may have disabled a feature (e.g. scale to zero using the faas-idler)
 
 ```sh
+  -enableAuth
+    	enable/disable authentication. The auth will be parsed from the default config in ~/.openfaas/config.yml
   -gateway string
     	set the gateway URL, if empty use the gateway_url env variable
   -scaleToZero
@@ -80,6 +97,8 @@ Some providers may not implement all features (yet) or an installation may have 
     	enable/disable secret update tests (default true)
   -swarm
     	helper flag to run only swarm-compatible tests only
+  -token string
+    	authentication Bearer token override, enables auth automatically
 ```
 
 These flags can be passed the the `Makefile` via the `.FEATURE_FLAGS` variable:

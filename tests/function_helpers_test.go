@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"net/http"
+	"os"
 	"path"
 	"testing"
 
@@ -10,12 +11,22 @@ import (
 	"github.com/openfaas/faas-provider/types"
 )
 
+var devnull = os.NewFile(0, os.DevNull)
+
 func deploy(t *testing.T, createRequest *sdk.DeployFunctionSpec) int {
 	t.Helper()
-	gwURL := gatewayURL(t)
+	var stdout *os.File
 
-	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
-	statusCode := client.DeployFunction(context.Background(), createRequest)
+	// suppress the sdk fmt.Println, this hides statements like this that provide no
+	// useful information to the tests and clutter the output
+	// Deployed. 202 Accepted.
+	// URL: http://127.0.0.1:8080/function/test-throughput-scaling
+	stdout, os.Stdout = os.Stdout, devnull
+	defer func() {
+		os.Stdout = stdout
+	}()
+
+	statusCode := config.Client.DeployFunction(context.Background(), createRequest)
 	if statusCode >= 400 {
 		t.Fatalf("unable to deploy function: %d", statusCode)
 	}
@@ -24,10 +35,7 @@ func deploy(t *testing.T, createRequest *sdk.DeployFunctionSpec) int {
 }
 
 func list(t *testing.T, expectedStatusCode int) {
-	gwURL := gatewayURL(t)
-
-	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
-	functions, err := client.ListFunctions(context.Background(), defaultNamespace)
+	functions, err := config.Client.ListFunctions(context.Background(), defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,10 +46,7 @@ func list(t *testing.T, expectedStatusCode int) {
 }
 
 func get(t *testing.T, name string) types.FunctionStatus {
-	gwURL := gatewayURL(t)
-
-	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
-	function, err := client.GetFunctionInfo(context.Background(), name, defaultNamespace)
+	function, err := config.Client.GetFunctionInfo(context.Background(), name, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,10 +56,8 @@ func get(t *testing.T, name string) types.FunctionStatus {
 
 func deleteFunction(t *testing.T, name string) {
 	t.Helper()
-	gwURL := gatewayURL(t)
 
-	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
-	err := client.DeleteFunction(context.Background(), name, defaultNamespace)
+	err := config.Client.DeleteFunction(context.Background(), name, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,10 +65,13 @@ func deleteFunction(t *testing.T, name string) {
 
 func scaleFunction(t *testing.T, name string, count int) {
 	t.Helper()
+
+	// the CLI sdk does not currently support manually scaling
 	gwURL := resourceURL(t, path.Join("system", "scale-function", name), "")
 	payload := makeReader(map[string]interface{}{"service": name, "replicas": count})
 
-	_, res := request(t, gwURL, http.MethodPost, payload)
+	// TODO : enable auth
+	_, res := request(t, gwURL, http.MethodPost, config.Auth, payload)
 	if res.StatusCode != http.StatusAccepted && res.StatusCode != http.StatusOK {
 		t.Fatalf("scale got %d, wanted %d (or %d)", res.StatusCode, http.StatusAccepted, http.StatusOK)
 	}

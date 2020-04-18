@@ -9,18 +9,14 @@ import (
 	"github.com/openfaas/faas-provider/types"
 )
 
-var secretsPath = "system/secrets"
-
 func Test_SecretCRUD(t *testing.T) {
 	setValue := "this-is-the-secret-value"
 	setName := "secret-name"
 	functionName := "test-secret-crud"
 
-	gwURL := gatewayURL(t)
-	client := sdk.NewClient(&Unauthenticated{}, gwURL, nil, &timeout)
 	ctx := context.Background()
 
-	createStatus, _ := client.CreateSecret(ctx, types.Secret{Name: setName, Value: setValue})
+	createStatus, _ := config.Client.CreateSecret(ctx, types.Secret{Name: setName, Value: setValue})
 	if createStatus != http.StatusCreated && createStatus != http.StatusAccepted {
 		t.Fatalf("got %d, wanted %d or %d", createStatus, http.StatusOK, http.StatusAccepted)
 	}
@@ -48,7 +44,7 @@ func Test_SecretCRUD(t *testing.T) {
 	}
 
 	// Verify that the secret can be listed.
-	secrets, err := client.GetSecretList(ctx, defaultNamespace)
+	secrets, err := config.Client.GetSecretList(ctx, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +56,7 @@ func Test_SecretCRUD(t *testing.T) {
 	// Docker Swarm secrets are immutable, so skip the update tests for swarm.
 	if config.SecretUpdate {
 		newValue := "this-is-the-edited-secret-value"
-		updateStatus, _ := client.UpdateSecret(ctx, types.Secret{Name: setName, Value: newValue})
+		updateStatus, _ := config.Client.UpdateSecret(ctx, types.Secret{Name: setName, Value: newValue})
 		if updateStatus != http.StatusOK && updateStatus != http.StatusAccepted {
 			t.Errorf("got %d, wanted %d or %d", updateStatus, http.StatusOK, http.StatusAccepted)
 		}
@@ -76,20 +72,20 @@ func Test_SecretCRUD(t *testing.T) {
 	}
 
 	// Function needs to be deleted to free up the secret so it can also be deleted.
-	err = client.DeleteFunction(ctx, functionName, defaultNamespace)
+	err = config.Client.DeleteFunction(ctx, functionName, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("Got correct response for deleting function")
 
-	err = client.RemoveSecret(ctx, types.Secret{Name: setName})
+	err = config.Client.RemoveSecret(ctx, types.Secret{Name: setName})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("Got correct response for deleting secret:")
 
 	// Verify that the secret was deleted.
-	secrets, err = client.GetSecretList(ctx, defaultNamespace)
+	secrets, err = config.Client.GetSecretList(ctx, defaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
