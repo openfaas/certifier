@@ -31,8 +31,7 @@ lint:
 .FEATURE_FLAGS= # set config feature flags, e.g. -swarm
 
 test-swarm: clean-swarm
-	.FEATURE_FLAGS="-swarm ${.FEATURE_FLAGS}"
-	time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
+	time go test -count=1 ./tests -v -swarm -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
 
 test-kubernetes: clean-kubernetes
 	time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
