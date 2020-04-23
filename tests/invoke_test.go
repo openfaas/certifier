@@ -58,12 +58,12 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 
 func Test_InvokePropogatesRedirectToTheCaller(t *testing.T) {
 	destination := "http://example.com"
-	functionRequest := types.FunctionDeployment{
-		Image:      "theaxer/redirector:latest",
-		Service:    "redirector-test",
-		Network:    "func_functions",
-		EnvProcess: "./handler",
-		EnvVars:    map[string]string{"destination": destination},
+	functionRequest := &sdk.DeployFunctionSpec{
+		Image:        "theaxer/redirector:latest",
+		FunctionName: "redirector-test",
+		Network:      "func_functions",
+		FProcess:     "./handler",
+		EnvVars:      map[string]string{"destination": destination},
 	}
 
 	deployStatus := deploy(t, functionRequest)
