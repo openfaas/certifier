@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openfaas/faas-cli/commands"
+	"github.com/openfaas/certifier/version"
 
 	sdkConfig "github.com/openfaas/faas-cli/config"
 
@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	printVersion     = false
 	config           = Config{}
 	defaultNamespace = ""
 	swarm            = flag.Bool("swarm", false, "helper flag to run only swarm-compatible tests only")
@@ -27,6 +28,7 @@ var (
 
 func init() {
 
+	flag.BoolVar(&printVersion, "version", false, "print the test version and exit")
 	flag.StringVar(&config.Gateway, "gateway", "", "set the gateway URL, if empty use the gateway_url env variable")
 
 	flag.BoolVar(
@@ -42,6 +44,12 @@ func init() {
 func TestMain(m *testing.M) {
 	// flag parsing here
 	flag.Parse()
+
+	if printVersion {
+		fmt.Printf("commit:  %s\n", version.Commit)
+		fmt.Printf("version: %s\n", version.Version)
+		os.Exit(1)
+	}
 
 	if config.Gateway == "" {
 		uri, err := url.Parse(os.Getenv("gateway_url"))
@@ -61,14 +69,17 @@ func TestMain(m *testing.M) {
 		config.ScaleToZero = false
 	}
 
+	var err error
 	config.Auth = &Unauthenticated{}
 	if config.AuthEnabled || *token != "" {
 		// TODO : NewCLIAuth should return the error from LookupAuthConfig!
-		config.Auth = commands.NewCLIAuth(*token, config.Gateway)
+		config.Auth, err = sdk.NewCLIAuth(*token, config.Gateway)
+		log.Fatalf("auth setup failure: %s", err)
 	}
 
 	timeout := 5 * time.Second
-	config.Client = sdk.NewClient(config.Auth, config.Gateway, nil, &timeout)
+	config.Client, err = sdk.NewClient(config.Auth, config.Gateway, nil, &timeout)
+	log.Fatalf("auth setup failure: %s", err)
 
 	os.Exit(m.Run())
 }

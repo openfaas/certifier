@@ -1,0 +1,80 @@
+ARG goversion=1.14
+ARG alpineversion=3.11
+
+FROM teamserverless/license-check:0.3.9 as license-check
+
+# Build stage
+FROM golang:$goversion as builder
+
+ARG GIT_COMMIT="000000"
+ARG VERSION="dev"
+
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
+ENV GOFLAGS=-mod=vendor
+
+COPY --from=license-check /license-check /usr/bin/
+
+WORKDIR /app
+COPY go.mod .
+COPY go.sum .
+COPY tests ./tests
+COPY version ./version
+COPY vendor ./vendor
+
+RUN license-check -path /app --verbose=false "Alex Ellis" "OpenFaaS Author(s)"
+RUN gofmt -l -d $(find . -type f -name '*.go' -not -path "./vendor/*")
+
+
+# ldflags "-s -w" strips binary
+# ldflags -X injects commit version into binary
+
+# use multiple stages here because buildkit will run these in parallel,
+# if possible
+FROM builder as linux
+RUN CGO_ENABLED=0 GOOS=linux go test -c --ldflags "-s -w \
+    -X github.com/openfaas/certifier/version.Commit=${GIT_COMMIT} \
+    -X github.com/openfaas/certifier/version.Version=${VERSION}" \
+    -a -installsuffix cgo -o certifier \
+    ./tests
+
+FROM builder as darwin
+RUN CGO_ENABLED=0 GOOS=darwin go test -c --ldflags "-s -w \
+    -X github.com/openfaas/certifier/version.Commit=${GIT_COMMIT} \
+    -X github.com/openfaas/certifier/version.Version=${VERSION}" \
+    -a -installsuffix cgo -o certifier-darwin \
+    ./tests
+
+FROM builder as windows
+RUN CGO_ENABLED=0 GOOS=windows go test -c --ldflags "-s -w \
+    -X github.com/openfaas/certifier/version.Commit=${GIT_COMMIT} \
+    -X github.com/openfaas/certifier/version.Version=${VERSION}" \
+    -a -installsuffix cgo -o certifier.exe \
+    ./tests
+
+FROM builder as arm
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go test -c --ldflags "-s -w \
+    -X github.com/openfaas/certifier/version.Commit=${GIT_COMMIT} \
+    -X github.com/openfaas/certifier/version.Version=${VERSION}" \
+    -a -installsuffix cgo -o certifier-armhf \
+    ./tests
+
+FROM builder as arm64
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go test -c --ldflags "-s -w \
+    -X github.com/openfaas/certifier/version.Commit=${GIT_COMMIT} \
+    -X github.com/openfaas/certifier/version.Version=${VERSION}" \
+    -a -installsuffix cgo -o certifier-arm64 \
+    ./tests
+
+# Release stage
+FROM scratch
+
+WORKDIR /bin
+
+COPY --from=linux /app/certifier         /bin
+COPY --from=darwin /app/certifier-darwin /bin
+COPY --from=arm /app/certifier-armhf     /bin
+COPY --from=windows /app/certifier.exe   /bin
+COPY --from=arm64 /app/certifier-arm64   /bin
+
+CMD ["/bin/certifier"]

@@ -2,21 +2,27 @@
 github.com/drone/envsubst
 github.com/drone/envsubst/parse
 github.com/drone/envsubst/path
-# github.com/openfaas/faas v0.0.0-20200319193403-46b106878d2c
+# github.com/mitchellh/go-homedir v1.1.0
+github.com/mitchellh/go-homedir
+# github.com/openfaas/faas v0.0.0-20200422142642-18f6c720b50d
 github.com/openfaas/faas/gateway/requests
-# github.com/openfaas/faas-cli v0.0.0-20200403113215-3b98878aa1b6
+# github.com/openfaas/faas-cli v0.0.0-20201119120128-c9d284d0c5bd
+## explicit
+github.com/openfaas/faas-cli/config
 github.com/openfaas/faas-cli/proxy
-github.com/openfaas/faas-cli/schema
+github.com/openfaas/faas-cli/schema/store/v2
 github.com/openfaas/faas-cli/stack
-# github.com/openfaas/faas-provider v0.15.0
+# github.com/openfaas/faas-provider v0.15.1
+## explicit
 github.com/openfaas/faas-provider/httputil
 github.com/openfaas/faas-provider/logs
 github.com/openfaas/faas-provider/types
-# github.com/rakyll/hey v0.1.3
+# github.com/rakyll/hey v0.1.4
+## explicit
 github.com/rakyll/hey/requester
 # github.com/ryanuber/go-glob v1.0.0
 github.com/ryanuber/go-glob
-# golang.org/x/net v0.0.0-20181017193950-04a2e542c03f
+# golang.org/x/net v0.0.0-20190522155817-f3200d17e092
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
@@ -26,5 +32,5 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# gopkg.in/yaml.v2 v2.2.2
+# gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2

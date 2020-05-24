@@ -51,3 +51,5 @@ jobs:
         - arkade install openfaas --basic-auth=false
         - kubectl rollout status -n openfaas deploy/gateway -w
       script: make test-kubernetes
+    - name: build
+      script: make build
