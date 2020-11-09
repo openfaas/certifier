@@ -1,0 +1,80 @@
+name: build
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+env:
+  IP: 127.0.0.1
+
+jobs:
+  lint:
+    strategy:
+      matrix:
+        go-version: [ 1.13.x ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.29
+  test-swarm:
+    strategy:
+      matrix:
+        go-version: [ 1.13.x ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: create swarm cluster
+        run: ./contrib/create_swarm_cluster.sh
+      - name: deploy stack
+        run: ./contrib/deploy_stack.sh
+      - name: wait 15 seconds
+        run: sleep 15
+      - name: test swarm
+        run: make test-swarm
+        env:
+          OPENFAAS_URL: http://${{ env.IP }}:8080/
+      - name: clean swarm cluster
+        run: ./contrib/clean_swarm_cluster.sh
+  test-kubernetes:
+    strategy:
+      matrix:
+        go-version: [ 1.13.x ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: get tools
+        run: ./contrib/get_tools.sh
+      - name: create kubernetes cluster
+        run: ./contrib/create_kubernetes_cluster.sh
+      - name: deploy openfaas
+        run: ./contrib/deploy_openfaas.sh
+      - name: test kubernetes
+        run: make test-kubernetes
+        env:
+          OPENFAAS_URL: http://${{ env.IP }}:31112/
