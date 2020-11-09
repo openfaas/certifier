@@ -23,10 +23,6 @@ clean-swarm:
 clean-kubernetes:
 	- kubectl delete -n openfaas-fn deploy,svc ${.TEST_FUNCTIONS} 2>/dev/null || : ;
 
-lint:
-	@golangci-lint version
-	golangci-lint run --timeout=1m ./...
-
 .TEST_FLAGS= # additional test flags, e.g. -run ^Test_ScaleFromZeroDuringIvoke$
 .FEATURE_FLAGS= # set config feature flags, e.g. -swarm
 
