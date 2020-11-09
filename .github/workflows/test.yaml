@@ -1,0 +1,43 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  IP: 127.0.0.1
+  USER_NAME: $(whoami)
+  KUBECONFIG_FOLDER_PATH: /home/$USER_NAME/.kube
+  KUBECONFIG_PATH: $KUBECONFIG_FOLDER_PATH/config
+  KUBECONFIG: $KUBECONFIG_PATH
+  KUBECTL_VERSION: v1.16.8
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: [1.14.x]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.29
+      - name: test faas-swam
+        run: ./contrib/faas-swarm.sh
+        env:
+          OPENFAAS_URL: http://$IP:8080/
+      - name: test fees-netes
+        run: ./contrib/faas-netes.sh
+        env:
+          OPENFAAS_URL: http://$IP:31112/
