@@ -117,3 +117,4 @@ Style guidelines
 - [ ] Tests need to cope with timeouts and attempt retries when that makes sense
 - [ ] should pass `gofmt`
 - [ ] commits should follow contribution guide of [openfaas/faas](https://github.com/openfaas/faas)
+
