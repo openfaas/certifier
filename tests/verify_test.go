@@ -9,10 +9,11 @@ import (
 
 func invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
 	t.Helper()
-	return invokeWithVerb(t, http.MethodPost, name, query, expectedStatusCode...)
+	content, _ := invokeWithVerb(t, http.MethodPost, name, query, expectedStatusCode...)
+	return content
 }
 
-func invokeWithVerb(t *testing.T, verb string, name string, query string, expectedStatusCode ...int) []byte {
+func invokeWithVerb(t *testing.T, verb string, name string, query string, expectedStatusCode ...int) ([]byte, *http.Response) {
 	t.Helper()
 
 	attempts := 30 // i.e. 30x2s = 1m
@@ -31,7 +32,7 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 			if res.StatusCode == code {
 				// success, we can stop now
 				t.Logf("[%d/%d] Got correct response: %v - %s", i+1, attempts, res.StatusCode, uri)
-				return bytesOut
+				return bytesOut, res
 			}
 		}
 
@@ -51,5 +52,5 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 	t.Logf("Failing after: %d attempts", attempts)
 	t.Fatalf("invoke failed with: %s", bytesOut)
 
-	return nil
+	return nil, nil
 }

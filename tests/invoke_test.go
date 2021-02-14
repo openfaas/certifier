@@ -46,11 +46,21 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	for _, v := range verbs {
 		t.Run(v.verb, func(t *testing.T) {
 
-			bytesOut := invokeWithVerb(t, v.verb, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
+			bytesOut, res := invokeWithVerb(t, v.verb, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
 
 			out := string(bytesOut)
 			if !v.match(out) {
 				t.Fatalf("want: %s, got: %s", fmt.Sprintf("Http_Method=%s", v.verb), out)
+			}
+
+			callID := res.Header.Get("X-Call-Id")
+			if callID == "" {
+				t.Fatal("expect non-empty X-Call-Id header")
+			}
+
+			startTime := res.Header.Get("X-Start-Time")
+			if startTime == "" {
+				t.Fatal("expect non-empty X-Start-Time header")
 			}
 		})
 	}
