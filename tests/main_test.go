@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -37,6 +38,8 @@ func init() {
 	)
 	flag.BoolVar(&config.SecretUpdate, "secretUpdate", true, "enable/disable secret update tests")
 	flag.BoolVar(&config.ScaleToZero, "scaleToZero", true, "enable/disable scale from zero tests")
+
+	FromEnv(&config)
 }
 
 func TestMain(m *testing.M) {
@@ -70,6 +73,12 @@ func TestMain(m *testing.M) {
 	timeout := 5 * time.Second
 	config.Client = sdk.NewClient(config.Auth, config.Gateway, nil, &timeout)
 
+	prettyConfig, err := json.MarshalIndent(config, "", "\t")
+	if err != nil {
+		log.Fatalf("Config Pretty Print Failed with %s", err)
+	}
+	log.Println(string(prettyConfig))
+
 	os.Exit(m.Run())
 }
 
@@ -91,4 +100,18 @@ type Config struct {
 	SecretUpdate bool
 	// ScaleToZero enables/disables the scale from zero test
 	ScaleToZero bool
+
+	// Namespaces to verfiy OpenFaaS provider
+	Namespaces []string
+}
+
+func FromEnv(config *Config) {
+	// read CERTIFIER_NAMESPACES variable, parse as csv string
+	namespaces, present := os.LookupEnv("CERTIFIER_NAMESPACES")
+	if present {
+		config.Namespaces = strings.Split(namespaces, ",")
+		for index := range config.Namespaces {
+			config.Namespaces[index] = strings.TrimSpace(config.Namespaces[index])
+		}
+	}
 }
