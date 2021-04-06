@@ -1,8 +1,10 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 
@@ -118,6 +120,30 @@ func Test_Deploy_WithAnnotations(t *testing.T) {
 	function := get(t, functionRequest.FunctionName)
 	if err := strMapEqual("annotations", *function.Annotations, wantedAnnotations); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func Test_ListNamespaces(t *testing.T) {
+	expectedNamespaces := append(config.Namespaces, config.DefaultNamespace)
+	actualNamespaces, err := config.Client.ListNamespaces(context.Background())
+
+	if err != nil {
+		t.Fatalf("Unable to List OpenFaaS Namespaces: %q", err)
+	}
+
+	expectedLen := len(expectedNamespaces)
+	actualLen := len(actualNamespaces)
+	if expectedLen != actualLen {
+		t.Fatalf("want %d namespace(s),  got %d namespace(s)", expectedLen, actualLen)
+	}
+
+	sort.Strings(expectedNamespaces)
+	sort.Strings(actualNamespaces)
+
+	for i, ns := range expectedNamespaces {
+		if ns != actualNamespaces[i] {
+			t.Fatalf("want namespace: %q , got %q", expectedNamespaces, actualNamespaces)
+		}
 	}
 }
 

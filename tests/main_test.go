@@ -103,6 +103,9 @@ type Config struct {
 
 	// Namespaces to verfiy OpenFaaS provider
 	Namespaces []string
+
+	// DefaultNamespace for OpenFaas provider
+	DefaultNamespace string
 }
 
 func FromEnv(config *Config) {
@@ -113,5 +116,14 @@ func FromEnv(config *Config) {
 		for index := range config.Namespaces {
 			config.Namespaces[index] = strings.TrimSpace(config.Namespaces[index])
 		}
+	}
+
+	// read CERTIFIER_DEFAULT_NAMESPACE variable, if not apply openfaas-fn
+	defaultNamespace, present := os.LookupEnv("CERTIFIER_DEFAULT_NAMESPACE")
+
+	if present {
+		config.DefaultNamespace = defaultNamespace
+	} else {
+		config.DefaultNamespace = "openfaas-fn"
 	}
 }
