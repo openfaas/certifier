@@ -5,121 +5,129 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strings"
 	"testing"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
+	types "github.com/openfaas/faas-provider/types"
 )
 
 var emptyQueryString = ""
 
-func Test_Deploy_Stronghash(t *testing.T) {
-	envVars := map[string]string{}
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: "stronghash",
-		Network:      "func_functions",
-		FProcess:     "sha512sum",
-		EnvVars:      envVars,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	list(t, http.StatusOK)
+type FunctionMetaSchema struct {
+	name     string
+	function types.FunctionDeployment
 }
 
-func Test_Deploy_PassingCustomEnvVars_AndQueryString(t *testing.T) {
-	envVars := map[string]string{}
-	envVars["custom_env"] = "custom_env_value"
+const someAnnotationJson = `{
+	"glossary":{
+	   "title":"example glossary",
+	   "GlossDiv":{
+		  "title":"S",
+		  "GlossList":{
+			 "GlossEntry":{
+				"ID":"SGML",
+				"SortAs":"SGML",
+				"GlossTerm":"Standard Generalized Markup Language",
+				"Acronym":"SGML",
+				"Abbrev":"ISO 8879:1986",
+				"GlossDef":{
+				   "para":"A meta-markup language, used to create markup languages such as DocBook.",
+				   "GlossSeeAlso":[
+					  "GML",
+					  "XML"
+				   ]
+				},
+				"GlossSee":"markup"
+			 }
+		  }
+	   }
+	}
+ }`
 
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: "env-test",
-		Network:      "func_functions",
-		FProcess:     "env",
-		EnvVars:      envVars,
+func Test_Deploy_MetaData(t *testing.T) {
+	cases := []FunctionMetaSchema{
+		{
+			name: "Deploy without any extra metadata",
+			function: types.FunctionDeployment{
+				Image:       "functions/alpine:latest",
+				Service:     "stronghash",
+				EnvProcess:  "sha512sum",
+				EnvVars:     map[string]string{},
+				Annotations: &map[string]string{},
+				Labels:      &map[string]string{},
+				Namespace:   config.DefaultNamespace,
+			},
+		},
+		{
+			name: "Deploy with labels",
+			function: types.FunctionDeployment{
+				Image:       "functions/alpine:latest",
+				Service:     "env-test-labels",
+				EnvProcess:  "env",
+				EnvVars:     map[string]string{},
+				Annotations: &map[string]string{},
+				Labels: &map[string]string{
+					"upstream_uri": "example.com",
+					"canary_build": "true",
+				},
+				Namespace: config.DefaultNamespace,
+			},
+		},
+		{
+			name: "Deploy with annotations",
+			function: types.FunctionDeployment{
+				Image:      "functions/alpine:latest",
+				Service:    "env-test-annotations",
+				EnvProcess: "env",
+				EnvVars:    map[string]string{},
+				Annotations: &map[string]string{
+					"important-date": "Fri Aug 10 08:21:00 BST 2018",
+					"some-json":      someAnnotationJson,
+				},
+				Labels:    &map[string]string{},
+				Namespace: config.DefaultNamespace,
+			},
+		},
 	}
 
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	list(t, http.StatusOK)
-
-	t.Run("Empty QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
-		out := string(bytesOut)
-		if strings.Contains(out, "custom_env") == false {
-			t.Fatalf("want: %s, got: %s", "custom_env", out)
+	// Add Test case, if CERTIFIER_NAMESPACES defined
+	if len(config.Namespaces) > 0 {
+		cnCases := make([]FunctionMetaSchema, len(cases))
+		copy(cnCases, cases)
+		for index := 0; index < len(cnCases); index++ {
+			cnCases[index].name = fmt.Sprintf("%s to %s", cnCases[index].name, config.Namespaces[0])
+			cnCases[index].function.Namespace = config.Namespaces[0]
 		}
-	})
 
-	t.Run("Populated QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.FunctionName, "testing=1", http.StatusOK)
-		out := string(bytesOut)
-		if strings.Contains(out, "Http_Query=testing=1") == false {
-			t.Fatalf("want: %s, got: %s", "Http_Query=testing=1", out)
-		}
-	})
-}
-
-func Test_Deploy_WithLabels(t *testing.T) {
-	wantedLabels := map[string]string{
-		"upstream_uri": "example.com",
-		"canary_build": "true",
-	}
-	envVars := map[string]string{}
-
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: "env-test-labels",
-		Network:      "func_functions",
-		FProcess:     "env",
-		Labels:       wantedLabels,
-		EnvVars:      envVars,
+		cases = append(cases, cnCases...)
 	}
 
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			functionRequest := &sdk.DeployFunctionSpec{
+				Image:        c.function.Image,
+				FunctionName: c.function.Service,
+				FProcess:     c.function.EnvProcess,
+				Annotations:  *c.function.Annotations,
+				EnvVars:      c.function.EnvVars,
+				Labels:       *c.function.Labels,
+				Namespace:    c.function.Namespace,
+			}
 
-	_ = invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
-	function := get(t, functionRequest.FunctionName)
-	if err := strMapEqual("labels", *function.Labels, wantedLabels); err != nil {
-		t.Fatal(err)
-	}
-}
+			deployStatus := deploy(t, functionRequest)
+			if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+				t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+			}
 
-func Test_Deploy_WithAnnotations(t *testing.T) {
-	wantedAnnotations := map[string]string{
-		"important-date": "Fri Aug 10 08:21:00 BST 2018",
-		"some-json": `{    "glossary": {        "title": "example glossary",		"GlossDiv": {            "title": "S",			"GlossList": {                "GlossEntry": {                    "ID": "SGML",					"SortAs": "SGML",					"GlossTerm": "Standard Generalized Markup Language",					"Acronym": "SGML",					"Abbrev": "ISO 8879:1986",					"GlossDef": {                        "para": "A meta-markup language, used to create markup languages such as DocBook.",						"GlossSeeAlso": ["GML", "XML"]                    },					"GlossSee": "markup"                }            }        }    }}`,
-	}
-	envVars := map[string]string{}
-
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: "env-test-annotations",
-		Network:      "func_functions",
-		FProcess:     "env",
-		Annotations:  wantedAnnotations,
-		EnvVars:      envVars,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	_ = invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
-	function := get(t, functionRequest.FunctionName)
-	if err := strMapEqual("annotations", *function.Annotations, wantedAnnotations); err != nil {
-		t.Fatal(err)
+			function := get(t, functionRequest.FunctionName)
+			list(t, http.StatusOK)
+			if err := strMapEqual("annotations", *function.Annotations, *c.function.Annotations); err != nil {
+				t.Fatal(err)
+			}
+			if err := strMapEqual("labels", *function.Labels, *c.function.Labels); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 
