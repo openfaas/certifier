@@ -84,3 +84,39 @@ func Test_InvokePropogatesRedirectToTheCaller(t *testing.T) {
 
 	_ = invoke(t, "redirector-test", emptyQueryString, http.StatusFound)
 }
+
+func Test_Invoke_With_CustomEnvVars_AndQueryString(t *testing.T) {
+	envVars := map[string]string{}
+	envVars["custom_env"] = "custom_env_value"
+
+	functionRequest := &sdk.DeployFunctionSpec{
+		Image:        "functions/alpine:latest",
+		FunctionName: "env-test",
+		Network:      "func_functions",
+		FProcess:     "env",
+		EnvVars:      envVars,
+	}
+
+	deployStatus := deploy(t, functionRequest)
+	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+	}
+
+	list(t, http.StatusOK)
+
+	t.Run("Empty QueryString", func(t *testing.T) {
+		bytesOut := invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
+		out := string(bytesOut)
+		if strings.Contains(out, "custom_env") == false {
+			t.Fatalf("want: %s, got: %s", "custom_env", out)
+		}
+	})
+
+	t.Run("Populated QueryString", func(t *testing.T) {
+		bytesOut := invoke(t, functionRequest.FunctionName, "testing=1", http.StatusOK)
+		out := string(bytesOut)
+		if strings.Contains(out, "Http_Query=testing=1") == false {
+			t.Fatalf("want: %s, got: %s", "Http_Query=testing=1", out)
+		}
+	})
+}
