@@ -129,12 +129,22 @@ func FromEnv(config *Config) {
 		for index := range config.Namespaces {
 			config.Namespaces[index] = strings.TrimSpace(config.Namespaces[index])
 		}
+
+		// filter empty values from config.Namespaces in place
+		n := 0
+		for _, x := range config.Namespaces {
+			if x != "" {
+				config.Namespaces[n] = x
+				n++
+			}
+		}
+		config.Namespaces = config.Namespaces[:n]
 	}
 
 	// read CERTIFIER_DEFAULT_NAMESPACE variable, if not apply openfaas-fn
 	defaultNamespace, present := os.LookupEnv("CERTIFIER_DEFAULT_NAMESPACE")
 
-	if present {
+	if present && strings.TrimSpace(defaultNamespace) != "" {
 		config.DefaultNamespace = defaultNamespace
 	} else {
 		config.DefaultNamespace = "openfaas-fn"
