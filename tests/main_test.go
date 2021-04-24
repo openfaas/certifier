@@ -45,14 +45,22 @@ func TestMain(m *testing.M) {
 	var err error
 	flag.Parse()
 
+	// get the gateway from the env
 	if config.Gateway == "" {
-		uri, err := url.Parse(os.Getenv("gateway_url"))
-		if err != nil {
-			log.Fatalf("invalid gateway url %s", err)
-		}
-
-		config.Gateway = uri.String()
+		config.Gateway = os.Getenv("gateway_url")
 	}
+
+	// or use the default if it is still empty
+	if config.Gateway == "" {
+		config.Gateway = "http://127.0.0.1:8080/"
+	}
+
+	uri, err := url.Parse(config.Gateway)
+	if err != nil {
+		log.Fatalf("invalid gateway url %s", err)
+	}
+
+	config.Gateway = uri.String()
 
 	// make sure to trim any trailing slash because this is how the gateway is modified when
 	// saved to the config. if we don't do this, we wont find the saved auth.

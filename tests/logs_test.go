@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -12,57 +13,98 @@ import (
 )
 
 func Test_FunctionLogs(t *testing.T) {
-	functionName := "test-logger"
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: functionName,
-		Network:      "func_functions",
-		FProcess:     "sha512sum",
+	type logsTestCase struct {
+		name         string
+		function     *sdk.DeployFunctionSpec
+		expectedLogs []string
 	}
 
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+	cases := []logsTestCase{
+		{
+			name: "provider can stream logs",
+			function: &sdk.DeployFunctionSpec{
+				Image:        "functions/alpine:latest",
+				FunctionName: "test-logger",
+				Network:      "func_functions",
+				FProcess:     "sha512sum",
+			},
+			expectedLogs: []string{
+				"Forking fprocess",
+				"Wrote 132 Bytes",
+			},
+		},
 	}
 
-	defer deleteFunction(t, functionName)
-
-	// each invoke should output two lines
-	// - Forking fprocess.
-	// - Wrote 132 Bytes - Duration: ...
-	_ = invoke(t, functionName, "", http.StatusOK)
-
-	logRequest := logs.Request{Name: functionName, Tail: 2, Follow: false}
-
-	// use context with timeout here to ensure we don't hang waiting for logs too long
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	logChan, err := config.Client.GetLogs(ctx, logRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	logLines := []logs.Message{}
-
-	expectedTextA := "Forking fprocess"
-	expectedTextB := "Wrote 132 Bytes"
-	for msg := range logChan {
-
-		if msg.Name != functionName {
-			t.Fatalf("got function name %s, expected %s", msg.Name, functionName)
+	if len(config.Namespaces) > 0 {
+		cnCases := make([]logsTestCase, len(cases))
+		copy(cnCases, cases)
+		for index := 0; index < len(cnCases); index++ {
+			cnCases[index].name = fmt.Sprintf("%s from %s", cnCases[index].name, config.Namespaces[0])
+			cnCases[index].function.Namespace = config.Namespaces[0]
 		}
 
-		// remove the timstamp and white space prefix
-		txt := strings.TrimLeft(msg.Text, "0123456789/: ")
-		if !strings.HasPrefix(txt, expectedTextA) && !strings.HasPrefix(txt, expectedTextB) {
-			t.Fatalf("got unexpected log message %q, expected %q or %q", txt, expectedTextA, expectedTextB)
-		}
-
-		logLines = append(logLines, msg)
+		cases = append(cases, cnCases...)
 	}
 
-	if len(logLines) != 2 {
-		t.Fatalf("got %d lines, expected %d", len(logLines), 2)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+
+			deployStatus := deploy(t, c.function)
+			if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+				t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+			}
+
+			// each invoke should output two lines
+			// - Forking fprocess.
+			// - Wrote 132 Bytes - Duration: ...
+			name := c.function.FunctionName
+			if c.function.Namespace != "" {
+				name = name + "." + c.function.Namespace
+			}
+			_ = invoke(t, name, "", http.StatusOK)
+
+			logRequest := logs.Request{
+				Name:      c.function.FunctionName,
+				Namespace: c.function.Namespace,
+				Tail:      2,
+				Follow:    false,
+			}
+
+			// use context with timeout here to ensure we don't hang waiting for logs too long
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			logChan, err := config.Client.GetLogs(ctx, logRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			logLines := []logs.Message{}
+			for msg := range logChan {
+
+				if msg.Name != c.function.FunctionName {
+					t.Fatalf("got function name %s, expected %s", msg.Name, c.function.FunctionName)
+				}
+
+				if msg.Namespace != c.function.Namespace {
+					t.Fatalf("got function namespace %s, expected %s", msg.Namespace, c.function.Namespace)
+				}
+
+				logLines = append(logLines, msg)
+			}
+
+			if len(logLines) != len(c.expectedLogs) {
+				t.Fatalf("got %d lines, expected %d", len(logLines), len(c.expectedLogs))
+			}
+
+			for idx, expected := range c.expectedLogs {
+				msg := logLines[idx]
+				// remove the timstamp and white space prefix
+				actual := strings.TrimLeft(msg.Text, "0123456789/: ")
+				if !strings.HasPrefix(actual, expected) {
+					t.Fatalf("got unexpected log message %q, expected %q", actual, expected)
+				}
+			}
+		})
 	}
 }
