@@ -54,10 +54,14 @@ func get(t *testing.T, name string) types.FunctionStatus {
 	return function
 }
 
-func deleteFunction(t *testing.T, name string) {
+func deleteFunction(t *testing.T, function *sdk.DeployFunctionSpec) {
 	t.Helper()
 
-	err := config.Client.DeleteFunction(context.Background(), name, defaultNamespace)
+	err := config.Client.DeleteFunction(
+		context.Background(),
+		function.FunctionName,
+		function.Namespace,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

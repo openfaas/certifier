@@ -2,7 +2,7 @@ OPENFAAS_URL?=http://127.0.0.1:8080/
 
 GOFLAGS := -mod=vendor
 
-.TEST_FUNCTIONS = \
+TEST_FUNCTIONS = \
 	stronghash \
 	env-test \
 	env-test-annotations \
@@ -17,17 +17,17 @@ GOFLAGS := -mod=vendor
 	test-logger \
 	redirector-test
 
-clean-swarm:
-	- docker service rm ${.TEST_FUNCTIONS}
+TEST_SECRETS = \
+	secret-name
+
+export TEST_FUNCTIONS TEST_SECRETS
+
 
 clean-kubernetes:
-	- kubectl delete -n openfaas-fn deploy,svc ${.TEST_FUNCTIONS} 2>/dev/null || : ;
+	- ./contrib/clean_kubernetes.sh
 
 .TEST_FLAGS= # additional test flags, e.g. -run ^Test_ScaleFromZeroDuringIvoke$
 .FEATURE_FLAGS= # set config feature flags, e.g. -swarm
 
-test-swarm: clean-swarm
-	time go test -count=1 ./tests -v -swarm -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
-
 test-kubernetes: clean-kubernetes
-	time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
+	CERTIFIER_NAMESPACES=certifier-test time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}

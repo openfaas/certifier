@@ -33,7 +33,7 @@ func Test_ScaleMinimum(t *testing.T) {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	defer deleteFunction(t, functionName)
+	defer deleteFunction(t, functionRequest)
 
 	fnc := get(t, functionName)
 	if fnc.Replicas != minReplicas {
@@ -58,7 +58,7 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	defer deleteFunction(t, functionName)
+	defer deleteFunction(t, functionRequest)
 
 	scaleFunction(t, functionName, 0)
 
@@ -92,7 +92,7 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	defer deleteFunction(t, functionName)
+	defer deleteFunction(t, functionRequest)
 
 	functionURL := resourceURL(t, path.Join("function", functionName), "")
 	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
@@ -153,7 +153,7 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	defer deleteFunction(t, functionName)
+	defer deleteFunction(t, functionRequest)
 
 	functionURL := resourceURL(t, path.Join("function", functionName), "")
 	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
@@ -218,7 +218,7 @@ func Test_ScaleToZero(t *testing.T) {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
 
-	defer deleteFunction(t, functionName)
+	defer deleteFunction(t, functionRequest)
 
 	functionURL := resourceURL(t, path.Join("function", functionName), "")
 	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
