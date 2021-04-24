@@ -68,7 +68,7 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 	}
 
 	// this will fail or pass the test
-	_ = invoke(t, functionName, "", http.StatusOK)
+	_ = invoke(t, functionName, "", "", http.StatusOK)
 }
 
 func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {

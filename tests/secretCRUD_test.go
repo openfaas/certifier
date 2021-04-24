@@ -38,7 +38,7 @@ func Test_SecretCRUD(t *testing.T) {
 	t.Logf("Got correct response for deploying function: %d", deployStatus)
 
 	// Verify that the secret value was set as intended.
-	value := string(invoke(t, functionRequest.FunctionName, "", http.StatusOK))
+	value := string(invoke(t, functionRequest.FunctionName, "", "", http.StatusOK))
 	if value != setValue {
 		t.Errorf("got %s, wanted %s", value, setValue)
 	}
@@ -63,7 +63,7 @@ func Test_SecretCRUD(t *testing.T) {
 		t.Logf("Got correct response for updating secret: %d", updateStatus)
 
 		// Verify that the secret value was edited.
-		value = string(invoke(t, functionRequest.FunctionName, "", http.StatusOK))
+		value = string(invoke(t, functionRequest.FunctionName, "", "", http.StatusOK))
 		if value != setValue {
 			t.Errorf("got %s, wanted %s", value, newValue)
 		}

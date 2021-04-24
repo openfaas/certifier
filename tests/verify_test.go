@@ -1,19 +1,21 @@
 package tests
 
 import (
+	"io"
 	"net/http"
 	"path"
+	"strings"
 	"testing"
 	"time"
 )
 
-func invoke(t *testing.T, name string, query string, expectedStatusCode ...int) []byte {
+func invoke(t *testing.T, name string, query string, body string, expectedStatusCode ...int) []byte {
 	t.Helper()
-	content, _ := invokeWithVerb(t, http.MethodPost, name, query, expectedStatusCode...)
+	content, _ := invokeWithVerb(t, http.MethodPost, name, query, body, expectedStatusCode...)
 	return content
 }
 
-func invokeWithVerb(t *testing.T, verb string, name string, query string, expectedStatusCode ...int) ([]byte, *http.Response) {
+func invokeWithVerb(t *testing.T, verb string, name string, query string, body string, expectedStatusCode ...int) ([]byte, *http.Response) {
 	t.Helper()
 
 	attempts := 30 // i.e. 30x2s = 1m
@@ -23,10 +25,15 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, expect
 
 	uri := resourceURL(t, path.Join("function", name), query)
 
+	var requestBody io.Reader
+	if body != "" {
+		requestBody = strings.NewReader(body)
+	}
+
 	var bytesOut []byte
 	for i := 0; i < attempts; i++ {
 
-		bytesOut, res := request(t, uri, verb, nil, nil)
+		bytesOut, res := request(t, uri, verb, nil, requestBody)
 
 		for _, code := range expectedStatusCode {
 			if res.StatusCode == code {

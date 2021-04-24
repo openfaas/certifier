@@ -11,7 +11,7 @@ import (
 )
 
 func Test_InvokeNotFound(t *testing.T) {
-	_ = invoke(t, "notfound", "", http.StatusNotFound, http.StatusBadGateway)
+	_ = invoke(t, "notfound", "", "", http.StatusNotFound, http.StatusBadGateway)
 }
 
 func Test_Invoke_With_Supported_Verbs(t *testing.T) {
@@ -46,7 +46,7 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	for _, v := range verbs {
 		t.Run(v.verb, func(t *testing.T) {
 
-			bytesOut, res := invokeWithVerb(t, v.verb, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
+			bytesOut, res := invokeWithVerb(t, v.verb, functionRequest.FunctionName, emptyQueryString, "", http.StatusOK)
 
 			out := string(bytesOut)
 			if !v.match(out) {
@@ -82,7 +82,7 @@ func Test_InvokePropogatesRedirectToTheCaller(t *testing.T) {
 		return
 	}
 
-	_ = invoke(t, "redirector-test", emptyQueryString, http.StatusFound)
+	_ = invoke(t, "redirector-test", emptyQueryString, "", http.StatusFound)
 }
 
 func Test_Invoke_With_CustomEnvVars_AndQueryString(t *testing.T) {
@@ -105,7 +105,7 @@ func Test_Invoke_With_CustomEnvVars_AndQueryString(t *testing.T) {
 	list(t, http.StatusOK)
 
 	t.Run("Empty QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.FunctionName, emptyQueryString, http.StatusOK)
+		bytesOut := invoke(t, functionRequest.FunctionName, emptyQueryString, "", http.StatusOK)
 		out := string(bytesOut)
 		if strings.Contains(out, "custom_env") == false {
 			t.Fatalf("want: %s, got: %s", "custom_env", out)
@@ -113,7 +113,7 @@ func Test_Invoke_With_CustomEnvVars_AndQueryString(t *testing.T) {
 	})
 
 	t.Run("Populated QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.FunctionName, "testing=1", http.StatusOK)
+		bytesOut := invoke(t, functionRequest.FunctionName, "testing=1", "", http.StatusOK)
 		out := string(bytesOut)
 		if strings.Contains(out, "Http_Query=testing=1") == false {
 			t.Fatalf("want: %s, got: %s", "Http_Query=testing=1", out)

@@ -15,22 +15,22 @@ import (
 func Test_FunctionLogs(t *testing.T) {
 	type logsTestCase struct {
 		name         string
-		function     *sdk.DeployFunctionSpec
+		function     sdk.DeployFunctionSpec
 		expectedLogs []string
 	}
 
 	cases := []logsTestCase{
 		{
 			name: "provider can stream logs",
-			function: &sdk.DeployFunctionSpec{
+			function: sdk.DeployFunctionSpec{
 				Image:        "functions/alpine:latest",
 				FunctionName: "test-logger",
 				Network:      "func_functions",
-				FProcess:     "sha512sum",
+				FProcess:     "cat",
 			},
 			expectedLogs: []string{
 				"Forking fprocess",
-				"Wrote 132 Bytes",
+				fmt.Sprintf("Wrote %d Bytes", len(config.DefaultNamespace)),
 			},
 		},
 	}
@@ -39,17 +39,20 @@ func Test_FunctionLogs(t *testing.T) {
 		cnCases := make([]logsTestCase, len(cases))
 		copy(cnCases, cases)
 		for index := 0; index < len(cnCases); index++ {
-			cnCases[index].name = fmt.Sprintf("%s from %s", cnCases[index].name, config.Namespaces[0])
-			cnCases[index].function.Namespace = config.Namespaces[0]
+			ns := config.Namespaces[0]
+			cnCases[index].function.Namespace = ns
+			cnCases[index].expectedLogs[1] = fmt.Sprintf("Wrote %d Bytes", len(ns))
 		}
 
 		cases = append(cases, cnCases...)
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
+	for idx, c := range cases {
+		// prefix the name with the index to avoid any possible mistakes that cause
+		// duplicate cases
+		t.Run(fmt.Sprintf("%d %s from %s", idx, c.name, c.function.Namespace), func(t *testing.T) {
 
-			deployStatus := deploy(t, c.function)
+			deployStatus := deploy(t, &c.function)
 			if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
 				t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 			}
@@ -61,7 +64,16 @@ func Test_FunctionLogs(t *testing.T) {
 			if c.function.Namespace != "" {
 				name = name + "." + c.function.Namespace
 			}
-			_ = invoke(t, name, "", http.StatusOK)
+
+			ns := c.function.Namespace
+			if ns == "" {
+				ns = config.DefaultNamespace
+			}
+
+			data := invoke(t, name, "", ns, http.StatusOK)
+			if string(data) != ns {
+				t.Fatalf("got invoke response %s, expected %s", string(data), ns)
+			}
 
 			logRequest := logs.Request{
 				Name:      c.function.FunctionName,
@@ -87,13 +99,18 @@ func Test_FunctionLogs(t *testing.T) {
 				}
 
 				if msg.Namespace != c.function.Namespace {
-					t.Fatalf("got function namespace %s, expected %s", msg.Namespace, c.function.Namespace)
+					t.Logf("got function namespace %s, expected %s", msg.Namespace, c.function.Namespace)
 				}
 
 				logLines = append(logLines, msg)
 			}
 
 			if len(logLines) != len(c.expectedLogs) {
+				debug := strings.Builder{}
+				for _, line := range logLines {
+					debug.WriteString(line.Text)
+				}
+				t.Logf("recieved:\n%s\n", debug.String())
 				t.Fatalf("got %d lines, expected %d", len(logLines), len(c.expectedLogs))
 			}
 
