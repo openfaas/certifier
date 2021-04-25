@@ -40,8 +40,13 @@ func Test_FunctionLogs(t *testing.T) {
 		copy(cnCases, cases)
 		for index := 0; index < len(cnCases); index++ {
 			ns := config.Namespaces[0]
+
+			newLogs := make([]string, len(cnCases[index].expectedLogs))
+			copy(newLogs, cnCases[index].expectedLogs)
+
+			newLogs[1] = fmt.Sprintf("Wrote %d Bytes", len(ns))
+			cnCases[index].expectedLogs = newLogs
 			cnCases[index].function.Namespace = ns
-			cnCases[index].expectedLogs[1] = fmt.Sprintf("Wrote %d Bytes", len(ns))
 		}
 
 		cases = append(cases, cnCases...)
