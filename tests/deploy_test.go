@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"reflect"
 	"sort"
+	"strings"
 	"testing"
+	"time"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
 	types "github.com/openfaas/faas-provider/types"
@@ -45,6 +48,9 @@ const someAnnotationJson = `{
  }`
 
 func Test_Deploy_MetaData(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	cases := []FunctionMetaSchema{
 		{
 			name: "Deploy without any extra metadata",
@@ -52,7 +58,6 @@ func Test_Deploy_MetaData(t *testing.T) {
 				Image:       "functions/alpine:latest",
 				Service:     "stronghash",
 				EnvProcess:  "sha512sum",
-				EnvVars:     map[string]string{},
 				Annotations: &map[string]string{},
 				Labels:      &map[string]string{},
 				Namespace:   config.DefaultNamespace,
@@ -64,7 +69,6 @@ func Test_Deploy_MetaData(t *testing.T) {
 				Image:       "functions/alpine:latest",
 				Service:     "env-test-labels",
 				EnvProcess:  "env",
-				EnvVars:     map[string]string{},
 				Annotations: &map[string]string{},
 				Labels: &map[string]string{
 					"upstream_uri": "example.com",
@@ -79,7 +83,6 @@ func Test_Deploy_MetaData(t *testing.T) {
 				Image:      "functions/alpine:latest",
 				Service:    "env-test-annotations",
 				EnvProcess: "env",
-				EnvVars:    map[string]string{},
 				Annotations: &map[string]string{
 					"important-date": "Fri Aug 10 08:21:00 BST 2018",
 					"some-json":      someAnnotationJson,
@@ -129,6 +132,48 @@ func Test_Deploy_MetaData(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("test listing functions", func(t *testing.T) {
+
+		listCases := map[string]map[string]types.FunctionDeployment{}
+		for _, tc := range cases {
+			fncs, ok := listCases[tc.function.Namespace]
+			if !ok {
+				fncs = map[string]types.FunctionDeployment{}
+			}
+
+			fncs[tc.function.Service] = tc.function
+			listCases[tc.function.Namespace] = fncs
+		}
+
+		for namespace, expected := range listCases {
+			actual, err := config.Client.ListFunctions(ctx, namespace)
+			if err != nil {
+				t.Fatalf("unable to List function in namspace: %s", err)
+			}
+
+			for _, actualF := range actual {
+				expectedF, ok := expected[actualF.Name]
+				if !ok {
+					t.Fatalf("unexpected deployment %s found", actualF.Name)
+				}
+
+				err = compareDeployAndStatus(expectedF, actualF)
+				if err != nil {
+					t.Fatal(err)
+				}
+				delete(expected, actualF.Name)
+			}
+
+			if len(expected) != 0 {
+				remaining := []string{}
+				for name := range expected {
+					remaining = append(remaining, name)
+				}
+				t.Fatalf("not all functions found in response: %s", strings.Join(remaining, ", "))
+			}
+		}
+	})
 }
 
 func Test_ListNamespaces(t *testing.T) {
@@ -155,6 +200,69 @@ func Test_ListNamespaces(t *testing.T) {
 	}
 }
 
+func compareDeployAndStatus(deploy types.FunctionDeployment, status types.FunctionStatus) error {
+	if deploy.Service != status.Name {
+		return fmt.Errorf("got %v, expected name %s", status.Name, deploy.Service)
+	}
+	if deploy.Image != status.Image {
+		return fmt.Errorf("got %v, expected image %s", status.Image, deploy.Image)
+	}
+	if deploy.Namespace != status.Namespace {
+		return fmt.Errorf("got %v, expected Namespace %s", status.Namespace, deploy.Namespace)
+	}
+	if deploy.EnvProcess != status.EnvProcess {
+		return fmt.Errorf("got %v, expected EnvProcess %s", status.EnvProcess, deploy.EnvProcess)
+	}
+
+	if deploy.ReadOnlyRootFilesystem != status.ReadOnlyRootFilesystem {
+		return fmt.Errorf("got %v, expected ReadOnlyRootFilesystem %v", status.ReadOnlyRootFilesystem, deploy.ReadOnlyRootFilesystem)
+	}
+
+	if !reflect.DeepEqual(deploy.EnvVars, status.EnvVars) {
+		return fmt.Errorf("got %v, expected EnvVars %v", status.EnvVars, deploy.EnvVars)
+	}
+
+	err := strSliceEqual(deploy.Constraints, status.Constraints)
+	if err != nil {
+		return fmt.Errorf("incorrect Constraints: %s", err)
+	}
+
+	err = strSliceEqual(deploy.Secrets, status.Secrets)
+	if err != nil {
+		return fmt.Errorf("incorrect Secrets: %s", err)
+	}
+
+	if !reflect.DeepEqual(deploy.Limits, status.Limits) {
+		return fmt.Errorf("got %v, expected Limits %v", status.Limits, deploy.Limits)
+	}
+
+	if !reflect.DeepEqual(deploy.Requests, status.Requests) {
+		return fmt.Errorf("got %v, expected Requests %v", status.Requests, deploy.Requests)
+	}
+
+	// we expect all systems to add the `faas_function` label?
+	expectedLabels := copyStrMap(deploy.Labels)
+	expectedLabels["faas_function"] = deploy.Service
+	if status.Labels == nil {
+		return fmt.Errorf("lables should not be nil")
+	}
+
+	err = strMapEqual("Lables", *status.Labels, expectedLabels)
+	if err != nil {
+		return err
+	}
+
+	// some systems add additional annotations, we remove those
+	if deploy.Annotations != nil && len(*deploy.Annotations) > 0 {
+		if status.Annotations == nil {
+			return fmt.Errorf("got nil Annotations, expected %d", len(*deploy.Annotations))
+		}
+		return strMapEqual("Annotations", *status.Annotations, *deploy.Annotations)
+	}
+
+	return nil
+}
+
 func strMapEqual(mapName string, got map[string]string, wanted map[string]string) error {
 	// Can't assert length is equal as some providers i.e. faas-swarm add their own labels during
 	// deployment like 'com.openfaas.function' and 'function'
@@ -170,4 +278,29 @@ func strMapEqual(mapName string, got map[string]string, wanted map[string]string
 	}
 
 	return nil
+}
+
+func strSliceEqual(got, wanted []string) error {
+	if len(got) != len(wanted) {
+		return fmt.Errorf("incorrect number of entries")
+	}
+	for idx, value := range got {
+		if wanted[idx] != value {
+			return fmt.Errorf("got %s in position %d, expected %s,", value, idx, wanted[idx])
+		}
+	}
+	return nil
+}
+
+func copyStrMap(src *map[string]string) map[string]string {
+	dst := map[string]string{}
+	if src == nil {
+		return dst
+	}
+
+	for name, value := range *src {
+		dst[name] = value
+	}
+
+	return dst
 }

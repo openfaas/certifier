@@ -14,45 +14,36 @@ func Test_ProviderInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p, ok := systeminfo["provider"]
-	if !ok {
+	if systeminfo.Provider == nil {
 		t.Fatal("provider info should be present")
 	}
-	provider := p.(map[string]interface{})
-
-	if orch, ok := provider["orchestration"]; !ok || orch.(string) == "" {
+	if systeminfo.Provider.Orchestration == "" {
 		t.Fatal("provider orchestration name may not be empty")
 	}
-
-	if name, ok := provider["provider"]; !ok || name.(string) == "" {
+	if systeminfo.Provider.Name == "" {
 		t.Fatal("provider name may not be empty")
 	}
 
-	pv, ok := provider["version"]
-	if !ok {
+	pv := systeminfo.Provider.Version
+	if pv == nil {
 		t.Fatal("provider version cannot be empty")
 	}
-	providerVersion := pv.(map[string]interface{})
-	if release, ok := providerVersion["release"]; !ok || release.(string) == "" {
+
+	if pv.Release == "" {
 		t.Fatal("provider version release may not be empty")
 	}
-	if sha, ok := providerVersion["sha"]; !ok || sha.(string) == "" {
+	if pv.SHA == "" {
 		t.Fatal("provider version sha may not be empty")
 	}
 
-	v, ok := systeminfo["version"]
-	version := v.(map[string]interface{})
-
-	if !ok {
+	v := systeminfo.Version
+	if v == nil {
 		t.Fatal("gateway version may not be nil")
 	}
-
-	if release, ok := version["release"]; !ok || release.(string) == "" {
+	if v.Release == "" {
 		t.Fatal("gateway version release may not be empty")
 	}
-
-	if sha, ok := version["sha"]; !ok || sha.(string) == "" {
+	if v.SHA == "" {
 		t.Fatal("gateway version sha may not be empty")
 	}
-
 }

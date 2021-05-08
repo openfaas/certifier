@@ -1,17 +1,13 @@
-// Copyright (c) Alex Ellis 2017. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 package types
 
-// ScaleServiceRequest scales the service to the requested replcia count.
-type ScaleServiceRequest struct {
-	ServiceName string `json:"serviceName"`
-	Replicas    uint64 `json:"replicas"`
-}
+// Platform architecture the gateway is running on
+var Arch string
 
-// DeleteFunctionRequest delete a deployed function
-type DeleteFunctionRequest struct {
-	FunctionName string `json:"functionName"`
+// GatewayInfo provides information about the gateway and it's connected components
+type GatewayInfo struct {
+	Provider *ProviderInfo `json:"provider"`
+	Version  *VersionInfo  `json:"version"`
+	Arch     string        `json:"arch"`
 }
 
 // ProviderInfo provides information about the configured provider
