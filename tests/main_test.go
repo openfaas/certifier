@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openfaas/faas-cli/commands"
-
 	sdkConfig "github.com/openfaas/faas-cli/config"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
@@ -44,6 +42,7 @@ func init() {
 
 func TestMain(m *testing.M) {
 	// flag parsing here
+	var err error
 	flag.Parse()
 
 	if config.Gateway == "" {
@@ -67,11 +66,17 @@ func TestMain(m *testing.M) {
 	config.Auth = &Unauthenticated{}
 	if config.AuthEnabled || *token != "" {
 		// TODO : NewCLIAuth should return the error from LookupAuthConfig!
-		config.Auth = commands.NewCLIAuth(*token, config.Gateway)
+		config.Auth, err = sdk.NewCLIAuth(*token, config.Gateway)
+		if err != nil {
+			log.Fatalf("can not build cli auth: %s", err)
+		}
 	}
 
 	timeout := 5 * time.Second
-	config.Client = sdk.NewClient(config.Auth, config.Gateway, nil, &timeout)
+	config.Client, err = sdk.NewClient(config.Auth, config.Gateway, nil, &timeout)
+	if err != nil {
+		log.Fatalf("can not client: %s", err)
+	}
 
 	prettyConfig, err := json.MarshalIndent(config, "", "\t")
 	if err != nil {
