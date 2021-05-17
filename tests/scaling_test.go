@@ -26,6 +26,7 @@ func Test_ScaleMinimum(t *testing.T) {
 		Network:      "func_functions",
 		FProcess:     "sha512sum",
 		Labels:       labels,
+		Namespace:    config.DefaultNamespace,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -35,7 +36,7 @@ func Test_ScaleMinimum(t *testing.T) {
 
 	defer deleteFunction(t, functionRequest)
 
-	fnc := get(t, functionName)
+	fnc := get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != minReplicas {
 		t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, minReplicas)
 	}
@@ -51,6 +52,7 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 		FunctionName: functionName,
 		Network:      "func_functions",
 		FProcess:     "sha512sum",
+		Namespace:    config.DefaultNamespace,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -62,13 +64,13 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 
 	scaleFunction(t, functionName, 0)
 
-	fnc := get(t, functionName)
+	fnc := get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != 0 {
 		t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, 0)
 	}
 
 	// this will fail or pass the test
-	_ = invoke(t, functionName, "", "", http.StatusOK)
+	_ = invoke(t, functionRequest, "", "", http.StatusOK)
 }
 
 func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
@@ -85,6 +87,7 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 		Network:      "func_functions",
 		FProcess:     "sha512sum",
 		Labels:       labels,
+		Namespace:    config.DefaultNamespace,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -115,7 +118,7 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 	functionLoad.Init()
 	functionLoad.Run()
 
-	fnc := get(t, functionName)
+	fnc := get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != maxReplicas {
 		t.Logf("function load output %s", loadOutput.String())
 		t.Fatalf("never reached max scale %d, only %d replicas after %d attempts", maxReplicas, fnc.Replicas, attempts)
@@ -123,7 +126,7 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 
 	// cooldown
 	time.Sleep(time.Minute)
-	fnc = get(t, functionName)
+	fnc = get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != minReplicas {
 		t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, minReplicas)
 	}
@@ -146,6 +149,7 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 		Network:      "func_functions",
 		FProcess:     "sha512sum",
 		Labels:       labels,
+		Namespace:    config.DefaultNamespace,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -176,7 +180,7 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 	functionLoad.Init()
 	functionLoad.Run()
 
-	fnc := get(t, functionName)
+	fnc := get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != minReplicas {
 		t.Logf("function load output %s", loadOutput.String())
 		t.Fatalf("unexpected scaling, expected %d, got %d replicas after %d attempts", minReplicas, fnc.Replicas, attempts)
@@ -211,6 +215,7 @@ func Test_ScaleToZero(t *testing.T) {
 		Network:      "func_functions",
 		FProcess:     "sha512sum",
 		Labels:       labels,
+		Namespace:    config.DefaultNamespace,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -241,7 +246,7 @@ func Test_ScaleToZero(t *testing.T) {
 	functionLoad.Init()
 	functionLoad.Run()
 
-	fnc := get(t, functionName)
+	fnc := get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != maxReplicas {
 		t.Logf("function load output %s", loadOutput.String())
 		t.Fatalf("never reached max scale %d, only %d replicas after %d attempts", maxReplicas, fnc.Replicas, attempts)
@@ -249,7 +254,7 @@ func Test_ScaleToZero(t *testing.T) {
 
 	// cooldown
 	time.Sleep(2 * time.Minute)
-	fnc = get(t, functionName)
+	fnc = get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != 0 {
 		t.Fatalf("got %d replicas, wanted 0", fnc.Replicas)
 	}

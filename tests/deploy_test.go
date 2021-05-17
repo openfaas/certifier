@@ -10,13 +10,12 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/openfaas/faas-cli/proxy"
 	types "github.com/openfaas/faas-provider/types"
 )
 
 var emptyQueryString = ""
 
-type FunctionMetaSchema struct {
+type FunctionTestCase struct {
 	name     string
 	function types.FunctionDeployment
 }
@@ -51,7 +50,7 @@ func Test_Deploy_MetaData(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cases := []FunctionMetaSchema{
+	cases := []FunctionTestCase{
 		{
 			name: "Deploy without any extra metadata",
 			function: types.FunctionDeployment{
@@ -94,36 +93,19 @@ func Test_Deploy_MetaData(t *testing.T) {
 	}
 
 	// Add Test case, if CERTIFIER_NAMESPACES defined
-	if len(config.Namespaces) > 0 {
-		cnCases := make([]FunctionMetaSchema, len(cases))
-		copy(cnCases, cases)
-		for index := 0; index < len(cnCases); index++ {
-			cnCases[index].name = fmt.Sprintf("%s to %s", cnCases[index].name, config.Namespaces[0])
-			cnCases[index].function.Namespace = config.Namespaces[0]
-		}
-
-		cases = append(cases, cnCases...)
-	}
+	cases = copyNamespacesTest(cases)
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			functionRequest := &sdk.DeployFunctionSpec{
-				Image:        c.function.Image,
-				FunctionName: c.function.Service,
-				FProcess:     c.function.EnvProcess,
-				Annotations:  *c.function.Annotations,
-				EnvVars:      c.function.EnvVars,
-				Labels:       *c.function.Labels,
-				Namespace:    c.function.Namespace,
-			}
+			functionRequest := createDeploymentSpec(c)
 
 			deployStatus := deploy(t, functionRequest)
 			if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
 				t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 			}
 
-			function := get(t, functionRequest.FunctionName)
-			list(t, http.StatusOK)
+			function := get(t, functionRequest.FunctionName, functionRequest.Namespace)
+			list(t, http.StatusOK, functionRequest.Namespace)
 			if err := strMapEqual("annotations", *function.Annotations, *c.function.Annotations); err != nil {
 				t.Fatal(err)
 			}

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -34,8 +35,8 @@ func deploy(t *testing.T, createRequest *sdk.DeployFunctionSpec) int {
 	return statusCode
 }
 
-func list(t *testing.T, expectedStatusCode int) {
-	functions, err := config.Client.ListFunctions(context.Background(), defaultNamespace)
+func list(t *testing.T, expectedStatusCode int, namespace string) {
+	functions, err := config.Client.ListFunctions(context.Background(), namespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,8 +46,8 @@ func list(t *testing.T, expectedStatusCode int) {
 	}
 }
 
-func get(t *testing.T, name string) types.FunctionStatus {
-	function, err := config.Client.GetFunctionInfo(context.Background(), name, defaultNamespace)
+func get(t *testing.T, name string, namespace string) types.FunctionStatus {
+	function, err := config.Client.GetFunctionInfo(context.Background(), name, namespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,4 +80,40 @@ func scaleFunction(t *testing.T, name string, count int) {
 	if res.StatusCode != http.StatusAccepted && res.StatusCode != http.StatusOK {
 		t.Fatalf("scale got %d, wanted %d (or %d)", res.StatusCode, http.StatusAccepted, http.StatusOK)
 	}
+}
+
+func copyNamespacesTest(cases []FunctionTestCase) []FunctionTestCase {
+	// Add Test case, if CERTIFIER_NAMESPACES defined
+	if len(config.Namespaces) > 0 {
+		cnCases := make([]FunctionTestCase, len(cases))
+		copy(cnCases, cases)
+		for index := 0; index < len(cnCases); index++ {
+			cnCases[index].name = fmt.Sprintf("%s to %s", cnCases[index].name, config.Namespaces[0])
+			cnCases[index].function.Namespace = config.Namespaces[0]
+		}
+
+		cases = append(cases, cnCases...)
+		return cases
+	}
+	return make([]FunctionTestCase, 0)
+}
+
+func createDeploymentSpec(test FunctionTestCase) *sdk.DeployFunctionSpec {
+	functionRequest := &sdk.DeployFunctionSpec{
+		Image:        test.function.Image,
+		FunctionName: test.function.Service,
+		FProcess:     test.function.EnvProcess,
+		EnvVars:      test.function.EnvVars,
+		Namespace:    test.function.Namespace,
+	}
+
+	if test.function.Annotations != nil {
+		functionRequest.Annotations = *test.function.Annotations
+	}
+
+	if test.function.Labels != nil {
+		functionRequest.Labels = *test.function.Labels
+	}
+
+	return functionRequest
 }

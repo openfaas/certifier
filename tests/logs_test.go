@@ -27,6 +27,7 @@ func Test_FunctionLogs(t *testing.T) {
 				FunctionName: "test-logger",
 				Network:      "func_functions",
 				FProcess:     "cat",
+				Namespace:    config.DefaultNamespace,
 			},
 			expectedLogs: []string{
 				"Forking fprocess",
@@ -65,17 +66,13 @@ func Test_FunctionLogs(t *testing.T) {
 			// each invoke should output two lines
 			// - Forking fprocess.
 			// - Wrote 132 Bytes - Duration: ...
-			name := c.function.FunctionName
-			if c.function.Namespace != "" {
-				name = name + "." + c.function.Namespace
-			}
 
 			ns := c.function.Namespace
 			if ns == "" {
 				ns = config.DefaultNamespace
 			}
 
-			data := invoke(t, name, "", ns, http.StatusOK)
+			data := invoke(t, &c.function, "", ns, http.StatusOK)
 			if string(data) != ns {
 				t.Fatalf("got invoke response %s, expected %s", string(data), ns)
 			}

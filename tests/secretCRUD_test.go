@@ -29,6 +29,7 @@ func Test_SecretCRUD(t *testing.T) {
 		Network:      "func_functions",
 		FProcess:     "cat /var/openfaas/secrets/" + setName,
 		Secrets:      []string{setName},
+		Namespace:    config.DefaultNamespace,
 	}
 
 	deployStatus := deploy(t, functionRequest)
@@ -38,13 +39,13 @@ func Test_SecretCRUD(t *testing.T) {
 	t.Logf("Got correct response for deploying function: %d", deployStatus)
 
 	// Verify that the secret value was set as intended.
-	value := string(invoke(t, functionRequest.FunctionName, "", "", http.StatusOK))
+	value := string(invoke(t, functionRequest, "", "", http.StatusOK))
 	if value != setValue {
 		t.Errorf("got %s, wanted %s", value, setValue)
 	}
 
 	// Verify that the secret can be listed.
-	secrets, err := config.Client.GetSecretList(ctx, defaultNamespace)
+	secrets, err := config.Client.GetSecretList(ctx, config.DefaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +64,7 @@ func Test_SecretCRUD(t *testing.T) {
 		t.Logf("Got correct response for updating secret: %d", updateStatus)
 
 		// Verify that the secret value was edited.
-		value = string(invoke(t, functionRequest.FunctionName, "", "", http.StatusOK))
+		value = string(invoke(t, functionRequest, "", "", http.StatusOK))
 		if value != setValue {
 			t.Errorf("got %s, wanted %s", value, newValue)
 		}
@@ -72,7 +73,7 @@ func Test_SecretCRUD(t *testing.T) {
 	}
 
 	// Function needs to be deleted to free up the secret so it can also be deleted.
-	err = config.Client.DeleteFunction(ctx, functionName, defaultNamespace)
+	err = config.Client.DeleteFunction(ctx, functionRequest.FunctionName, functionRequest.Namespace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +86,7 @@ func Test_SecretCRUD(t *testing.T) {
 	t.Logf("Got correct response for deleting secret:")
 
 	// Verify that the secret was deleted.
-	secrets, err = config.Client.GetSecretList(ctx, defaultNamespace)
+	secrets, err = config.Client.GetSecretList(ctx, config.DefaultNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}

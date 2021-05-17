@@ -8,30 +8,18 @@ import (
 	"fmt"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
+	types "github.com/openfaas/faas-provider/types"
 )
 
 func Test_InvokeNotFound(t *testing.T) {
-	_ = invoke(t, "notfound", "", "", http.StatusNotFound, http.StatusBadGateway)
+	functionRequest := &sdk.DeployFunctionSpec{
+		Image:     "notfound",
+		Namespace: config.DefaultNamespace,
+	}
+	_ = invoke(t, functionRequest, "", "", http.StatusNotFound, http.StatusBadGateway)
 }
 
-func Test_Invoke_With_Supported_Verbs(t *testing.T) {
-	envVars := map[string]string{}
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: "env-test-verbs",
-		Network:      "func_functions",
-		FProcess:     "env",
-		EnvVars:      envVars,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-		return
-	}
-
-	list(t, http.StatusOK)
-
+func invokeWithSupportedVerbs(t *testing.T, functionRequest *sdk.DeployFunctionSpec) {
 	verbs := []struct {
 		verb  string
 		match func(string) bool
@@ -46,7 +34,7 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	for _, v := range verbs {
 		t.Run(v.verb, func(t *testing.T) {
 
-			bytesOut, res := invokeWithVerb(t, v.verb, functionRequest.FunctionName, emptyQueryString, "", http.StatusOK)
+			bytesOut, res := invokeWithVerb(t, v.verb, functionRequest, emptyQueryString, "", http.StatusOK)
 
 			out := string(bytesOut)
 			if !v.match(out) {
@@ -66,46 +54,9 @@ func Test_Invoke_With_Supported_Verbs(t *testing.T) {
 	}
 }
 
-func Test_InvokePropogatesRedirectToTheCaller(t *testing.T) {
-	destination := "http://example.com"
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "theaxer/redirector:latest",
-		FunctionName: "redirector-test",
-		Network:      "func_functions",
-		FProcess:     "./handler",
-		EnvVars:      map[string]string{"destination": destination},
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-		return
-	}
-
-	_ = invoke(t, "redirector-test", emptyQueryString, "", http.StatusFound)
-}
-
-func Test_Invoke_With_CustomEnvVars_AndQueryString(t *testing.T) {
-	envVars := map[string]string{}
-	envVars["custom_env"] = "custom_env_value"
-
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: "env-test",
-		Network:      "func_functions",
-		FProcess:     "env",
-		EnvVars:      envVars,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	list(t, http.StatusOK)
-
+func invokeWithCustomEnvVarsAndQueryString(t *testing.T, functionRequest *sdk.DeployFunctionSpec) {
 	t.Run("Empty QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.FunctionName, emptyQueryString, "", http.StatusOK)
+		bytesOut := invoke(t, functionRequest, emptyQueryString, "", http.StatusOK)
 		out := string(bytesOut)
 		if strings.Contains(out, "custom_env") == false {
 			t.Fatalf("want: %s, got: %s", "custom_env", out)
@@ -113,10 +64,71 @@ func Test_Invoke_With_CustomEnvVars_AndQueryString(t *testing.T) {
 	})
 
 	t.Run("Populated QueryString", func(t *testing.T) {
-		bytesOut := invoke(t, functionRequest.FunctionName, "testing=1", "", http.StatusOK)
+		bytesOut := invoke(t, functionRequest, "testing=1", "", http.StatusOK)
 		out := string(bytesOut)
 		if strings.Contains(out, "Http_Query=testing=1") == false {
 			t.Fatalf("want: %s, got: %s", "Http_Query=testing=1", out)
 		}
 	})
+}
+
+func Test_Invoke(t *testing.T) {
+	cases := []FunctionTestCase{
+		{
+			name: "Invoke test with different verbs",
+			function: types.FunctionDeployment{
+				Image:      "functions/alpine:latest",
+				Service:    "env-test-verbs",
+				EnvProcess: "env",
+				EnvVars:    map[string]string{},
+				Namespace:  config.DefaultNamespace,
+			},
+		},
+		{
+			name: "Invoke propogates redirect to the caller",
+			function: types.FunctionDeployment{
+				Image:      "theaxer/redirector:latest",
+				Service:    "redirector-test",
+				EnvProcess: "./handler",
+				EnvVars:    map[string]string{"destination": "http://example.com"},
+				Namespace:  config.DefaultNamespace,
+			},
+		},
+		{
+			name: "Invoke with custom env vars and query string",
+			function: types.FunctionDeployment{
+				Image:      "functions/alpine:latest",
+				Service:    "env-test",
+				EnvProcess: "env",
+				EnvVars:    map[string]string{"custom_env": "custom_env_value"},
+				Namespace:  config.DefaultNamespace,
+			},
+		},
+	}
+
+	cases = copyNamespacesTest(cases)
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			functionRequest := createDeploymentSpec(c)
+			deployStatus := deploy(t, functionRequest)
+			if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+				t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+				return
+			}
+
+			list(t, http.StatusOK, functionRequest.Namespace)
+
+			switch service := c.function.Service; service {
+			case "env-test-verbs":
+				invokeWithSupportedVerbs(t, functionRequest)
+			case "redirector-test":
+				_ = invoke(t, functionRequest, emptyQueryString, "", http.StatusFound)
+			case "env-test":
+				invokeWithCustomEnvVarsAndQueryString(t, functionRequest)
+			default:
+				t.Fatalf("Invoke tests does not handle %s. Please raise an issue on repository", c.function.Service)
+			}
+		})
+	}
 }
