@@ -1,21 +1,24 @@
 package tests
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	sdk "github.com/openfaas/faas-cli/proxy"
 )
 
-func invoke(t *testing.T, name string, query string, body string, expectedStatusCode ...int) []byte {
+func invoke(t *testing.T, function *sdk.DeployFunctionSpec, query string, body string, expectedStatusCode ...int) []byte {
 	t.Helper()
-	content, _ := invokeWithVerb(t, http.MethodPost, name, query, body, expectedStatusCode...)
+	content, _ := invokeWithVerb(t, http.MethodPost, function, query, body, expectedStatusCode...)
 	return content
 }
 
-func invokeWithVerb(t *testing.T, verb string, name string, query string, body string, expectedStatusCode ...int) ([]byte, *http.Response) {
+func invokeWithVerb(t *testing.T, verb string, function *sdk.DeployFunctionSpec, query string, body string, expectedStatusCode ...int) ([]byte, *http.Response) {
 	t.Helper()
 
 	attempts := 30 // i.e. 30x2s = 1m
@@ -23,7 +26,7 @@ func invokeWithVerb(t *testing.T, verb string, name string, query string, body s
 
 	breakoutStatus := []int{http.StatusUnauthorized}
 
-	uri := resourceURL(t, path.Join("function", name), query)
+	uri := resourceURL(t, path.Join("function", fmt.Sprintf("%s.%s", function.FunctionName, function.Namespace)), query)
 
 	var requestBody io.Reader
 	if body != "" {

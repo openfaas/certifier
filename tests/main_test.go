@@ -18,10 +18,9 @@ import (
 )
 
 var (
-	config           = Config{}
-	defaultNamespace = ""
-	swarm            = flag.Bool("swarm", false, "helper flag to run only swarm-compatible tests only")
-	token            = flag.String("token", "", "authentication Bearer token override, enables auth automatically")
+	config = Config{}
+	swarm  = flag.Bool("swarm", false, "helper flag to run only swarm-compatible tests only")
+	token  = flag.String("token", "", "authentication Bearer token override, enables auth automatically")
 )
 
 func init() {
