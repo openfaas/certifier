@@ -33,6 +33,8 @@ jobs:
       matrix:
         go-version: [ 1.13.x ]
         os: [ ubuntu-latest ]
+    env:
+      CERTIFIER_NAMESPACES: certifier-test
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@master

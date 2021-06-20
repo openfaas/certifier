@@ -15,10 +15,13 @@ TEST_FUNCTIONS = \
 	test-scaling-disabled \
 	test-scaling-to-zero \
 	test-logger \
-	redirector-test
+	redirector-test \
+	secret-string \
+	secret-bytes
 
 TEST_SECRETS = \
-	secret-name
+	secret-string \
+	secret-bytes
 
 export TEST_FUNCTIONS TEST_SECRETS
 
@@ -30,4 +33,4 @@ clean-kubernetes:
 .FEATURE_FLAGS= # set config feature flags, e.g. -swarm
 
 test-kubernetes: clean-kubernetes
-	CERTIFIER_NAMESPACES=certifier-test time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
+	CERTIFIER_NAMESPACES=certifier-test go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
