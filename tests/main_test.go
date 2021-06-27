@@ -153,7 +153,7 @@ func FromEnv(config *Config) {
 	}
 
 	idlerEnabled, ok := os.LookupEnv("idler_enabled")
-	if ok && idlerEnabled == "true" {
+	if ok && idlerEnabled != "" {
 		enableTest, err := strconv.ParseBool(idlerEnabled)
 		if err != nil {
 			log.Fatalf("can parse idler_enabled env flag: %s", err.Error())
