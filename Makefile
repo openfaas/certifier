@@ -22,6 +22,11 @@ TEST_SECRETS = \
 
 export TEST_FUNCTIONS TEST_SECRETS
 
+.PHONY: lint
+lint: ## Verifies `golangci-lint` passes
+	@echo "+ $@"
+	@golangci-lint run ./...
+
 
 clean-kubernetes:
 	- ./contrib/clean_kubernetes.sh

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -108,6 +109,8 @@ type Config struct {
 	// AuthEnabled
 	AuthEnabled bool
 
+	IdlerEnabled bool
+
 	// SecretUpdate enables/disables the secret update test
 	SecretUpdate bool
 	// ScaleToZero enables/disables the scale from zero test
@@ -147,5 +150,15 @@ func FromEnv(config *Config) {
 		config.DefaultNamespace = defaultNamespace
 	} else {
 		config.DefaultNamespace = "openfaas-fn"
+	}
+
+	idlerEnabled, ok := os.LookupEnv("idler_enabled")
+	if ok && idlerEnabled != "" {
+		enableTest, err := strconv.ParseBool(idlerEnabled)
+		if err != nil {
+			log.Fatalf("can parse idler_enabled env flag: %s", err.Error())
+		}
+
+		config.IdlerEnabled = enableTest
 	}
 }

@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"os"
 	"path"
-	"strconv"
 	"testing"
 	"time"
 
@@ -14,248 +12,164 @@ import (
 	"github.com/rakyll/hey/requester"
 )
 
-func Test_ScaleMinimum(t *testing.T) {
-	functionName := "test-min-scale"
-	minReplicas := uint64(2)
-	labels := map[string]string{
-		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
-	}
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: functionName,
-		Network:      "func_functions",
-		FProcess:     "sha512sum",
-		Labels:       labels,
-		Namespace:    config.DefaultNamespace,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	defer deleteFunction(t, functionRequest)
-
-	fnc := get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != minReplicas {
-		t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, minReplicas)
-	}
+type scalingTestCase struct {
+	name           string
+	spec           sdk.DeployFunctionSpec
+	minReplicas    int
+	maxReplicas    int
+	targetReplicas int
+	withLoad       bool
+	scaleFromZero  bool
 }
 
-func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
-	if config.ScaleToZero {
-		t.Skip("scale to zero currently returns 500 in faas-swarm")
-	}
-	functionName := "test-scale-from-zero"
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: functionName,
-		Network:      "func_functions",
-		FProcess:     "sha512sum",
-		Namespace:    config.DefaultNamespace,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	defer deleteFunction(t, functionRequest)
-
-	scaleFunction(t, functionName, 0)
-
-	fnc := get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != 0 {
-		t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, 0)
-	}
-
-	// this will fail or pass the test
-	_ = invoke(t, functionRequest, "", "", http.StatusOK)
+func (t *scalingTestCase) SetNamespace(namespace string) {
+	t.name = fmt.Sprintf("%s in %s", t.name, namespace)
+	t.spec.Namespace = namespace
 }
 
-func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
-	functionName := "test-throughput-scaling"
-	minReplicas := uint64(1)
-	maxReplicas := uint64(2)
-	labels := map[string]string{
-		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
-		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
+func Test_Scaling(t *testing.T) {
+	cases := []scalingTestCase{
+		{
+			name: "deploy with non-default minimum replicas",
+			spec: sdk.DeployFunctionSpec{
+				Image:        "functions/alpine:latest",
+				FunctionName: "test-min-scale",
+				Network:      "func_functions",
+				FProcess:     "sha512sum",
+				Labels: map[string]string{
+					"com.openfaas.scale.min": fmt.Sprintf("%d", uint64(2)),
+				},
+				Namespace: config.DefaultNamespace,
+			},
+			minReplicas: 2,
+		},
+		{
+			name: "scale up from zero replicas after invoke",
+			spec: sdk.DeployFunctionSpec{
+				Image:        "functions/alpine:latest",
+				FunctionName: "test-scale-from-zero",
+				Network:      "func_functions",
+				FProcess:     "sha512sum",
+				Namespace:    config.DefaultNamespace,
+			},
+			scaleFromZero:  true,
+			targetReplicas: 1,
+			minReplicas:    1,
+		},
+		{
+			name: "scale up and down via load monitoring",
+			spec: sdk.DeployFunctionSpec{
+				Image:        "functions/alpine:latest",
+				FunctionName: "test-throughput-scaling",
+				Network:      "func_functions",
+				FProcess:     "sha512sum",
+				Labels: map[string]string{
+					"com.openfaas.scale.min": fmt.Sprintf("%d", 1),
+					"com.openfaas.scale.max": fmt.Sprintf("%d", 2),
+				},
+				Namespace: config.DefaultNamespace,
+			},
+			minReplicas:    1,
+			maxReplicas:    2,
+			targetReplicas: 1,
+			withLoad:       true,
+		},
+		{
+			name: "scale to zero",
+			spec: sdk.DeployFunctionSpec{
+				Image:        "functions/alpine:latest",
+				FunctionName: "test-scaling-to-zero",
+				Network:      "func_functions",
+				FProcess:     "sha512sum",
+				Labels: map[string]string{
+					"com.openfaas.scale.max":  fmt.Sprintf("%d", 2),
+					"com.openfaas.scale.zero": "true",
+				},
+				Namespace: config.DefaultNamespace,
+			},
+			minReplicas:    1,
+			maxReplicas:    2,
+			targetReplicas: 0,
+		},
 	}
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: functionName,
-		Network:      "func_functions",
-		FProcess:     "sha512sum",
-		Labels:       labels,
-		Namespace:    config.DefaultNamespace,
-	}
-
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
-
-	defer deleteFunction(t, functionRequest)
-
-	functionURL := resourceURL(t, path.Join("function", functionName), "")
-	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
-	if err != nil {
-		t.Fatalf("error with request %s ", err)
-	}
-
-	var loadOutput bytes.Buffer
-	attempts := 1000
-	functionLoad := requester.Work{
-		Request:           req,
-		N:                 attempts,
-		Timeout:           10,
-		C:                 2,
-		QPS:               5.0,
-		DisableKeepAlives: true,
-		Writer:            &loadOutput,
-	}
-
-	functionLoad.Init()
-	functionLoad.Run()
-
-	fnc := get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != maxReplicas {
-		t.Logf("function load output %s", loadOutput.String())
-		t.Fatalf("never reached max scale %d, only %d replicas after %d attempts", maxReplicas, fnc.Replicas, attempts)
-	}
-
-	// cooldown
-	time.Sleep(time.Minute)
-	fnc = get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != minReplicas {
-		t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, minReplicas)
-	}
-}
-
-func Test_ScalingDisabledViaLabels(t *testing.T) {
-	functionName := "test-scaling-disabled"
-	minReplicas := uint64(2)
-	maxReplicas := minReplicas
-	// Per the docs, setting these values equal to each other will disabled
-	// scaling
-	// https://docs.openfaas.com/architecture/autoscaling/#minmax-replicas
-	labels := map[string]string{
-		"com.openfaas.scale.min": fmt.Sprintf("%d", minReplicas),
-		"com.openfaas.scale.max": fmt.Sprintf("%d", maxReplicas),
-	}
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: functionName,
-		Network:      "func_functions",
-		FProcess:     "sha512sum",
-		Labels:       labels,
-		Namespace:    config.DefaultNamespace,
+	if len(config.Namespaces) > 0 {
+		defaultCasesLen := len(cases)
+		for index := 0; index < defaultCasesLen; index++ {
+			namespacedCase := cases[index]
+			namespacedCase.SetNamespace(config.Namespaces[0])
+			cases = append(cases, namespacedCase)
+		}
 	}
 
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
 
-	defer deleteFunction(t, functionRequest)
+			if !config.IdlerEnabled && tc.spec.Labels["com.openfaas.scale.zero"] == "true" {
+				t.Skip("set 'idler_enabled' to test scale to zero")
+				return
+			}
 
-	functionURL := resourceURL(t, path.Join("function", functionName), "")
-	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
-	if err != nil {
-		t.Fatalf("error with request %s ", err)
-	}
+			deployStatus := deploy(t, &tc.spec)
+			if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
+				t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+			}
 
-	var loadOutput bytes.Buffer
-	attempts := 1000
-	functionLoad := requester.Work{
-		Request:           req,
-		N:                 attempts,
-		Timeout:           10,
-		C:                 2,
-		QPS:               5.0,
-		DisableKeepAlives: true,
-		Writer:            &loadOutput,
-	}
+			defer deleteFunction(t, &tc.spec)
 
-	functionLoad.Init()
-	functionLoad.Run()
+			time.Sleep(5 * time.Second)
+			fnc := get(t, tc.spec.FunctionName, tc.spec.Namespace)
+			if fnc.Replicas != uint64(tc.minReplicas) {
+				t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, tc.minReplicas)
+			}
 
-	fnc := get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != minReplicas {
-		t.Logf("function load output %s", loadOutput.String())
-		t.Fatalf("unexpected scaling, expected %d, got %d replicas after %d attempts", minReplicas, fnc.Replicas, attempts)
-	}
-}
+			if tc.scaleFromZero {
+				scaleFunction(t, tc.spec.FunctionName, tc.spec.Namespace, 0)
 
-func Test_ScaleToZero(t *testing.T) {
+				fnc := get(t, tc.spec.FunctionName, tc.spec.Namespace)
+				if fnc.Replicas != 0 {
+					t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, 0)
+				}
 
-	idlerEnabled := os.Getenv("idler_enabled")
-	if idlerEnabled == "" {
-		idlerEnabled = "false"
-	}
+				// this will fail or pass the test
+				_ = invoke(t, &tc.spec, "", "", http.StatusOK)
+			}
 
-	enableTest, err := strconv.ParseBool(idlerEnabled)
-	if err != nil {
-		t.Fatal(err)
-	}
+			if tc.withLoad {
+				functionURL := resourceURL(t, path.Join("function", tc.spec.FunctionName+"."+tc.spec.Namespace), "")
+				req, err := http.NewRequest(http.MethodPost, functionURL, nil)
+				if err != nil {
+					t.Fatalf("error with request %s ", err)
+				}
 
-	if !enableTest {
-		t.Skip("set 'idler_enabled' to test scale to zero")
-	}
+				var loadOutput bytes.Buffer
+				attempts := 1000
+				functionLoad := requester.Work{
+					Request:           req,
+					N:                 attempts,
+					Timeout:           10,
+					C:                 2,
+					QPS:               5.0,
+					DisableKeepAlives: true,
+					Writer:            &loadOutput,
+				}
 
-	functionName := "test-scaling-to-zero"
-	maxReplicas := uint64(2)
-	labels := map[string]string{
-		"com.openfaas.scale.max":  fmt.Sprintf("%d", maxReplicas),
-		"com.openfaas.scale.zero": "true",
-	}
-	functionRequest := &sdk.DeployFunctionSpec{
-		Image:        "functions/alpine:latest",
-		FunctionName: functionName,
-		Network:      "func_functions",
-		FProcess:     "sha512sum",
-		Labels:       labels,
-		Namespace:    config.DefaultNamespace,
-	}
+				functionLoad.Run()
 
-	deployStatus := deploy(t, functionRequest)
-	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
-	}
+				fnc := get(t, tc.spec.FunctionName, tc.spec.Namespace)
+				if fnc.Replicas != uint64(tc.maxReplicas) {
+					t.Logf("function load output %s", loadOutput.String())
+					t.Fatalf("never reached max scale %d, only %d replicas after %d attempts", tc.maxReplicas, fnc.Replicas, attempts)
+				}
 
-	defer deleteFunction(t, functionRequest)
-
-	functionURL := resourceURL(t, path.Join("function", functionName), "")
-	req, err := http.NewRequest(http.MethodPost, functionURL, nil)
-	if err != nil {
-		t.Fatalf("error with request %s ", err)
-	}
-
-	var loadOutput bytes.Buffer
-	attempts := 1000
-	functionLoad := requester.Work{
-		Request:           req,
-		N:                 attempts,
-		Timeout:           10,
-		C:                 2,
-		QPS:               5.0,
-		DisableKeepAlives: true,
-		Writer:            &loadOutput,
-	}
-
-	functionLoad.Init()
-	functionLoad.Run()
-
-	fnc := get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != maxReplicas {
-		t.Logf("function load output %s", loadOutput.String())
-		t.Fatalf("never reached max scale %d, only %d replicas after %d attempts", maxReplicas, fnc.Replicas, attempts)
-	}
-
-	// cooldown
-	time.Sleep(2 * time.Minute)
-	fnc = get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != 0 {
-		t.Fatalf("got %d replicas, wanted 0", fnc.Replicas)
+				// no need to test cooldown if min=max, because it is effectively tested above
+				if tc.maxReplicas > tc.minReplicas {
+					time.Sleep(time.Minute)
+					fnc = get(t, tc.spec.FunctionName, tc.spec.Namespace)
+					if fnc.Replicas != uint64(tc.targetReplicas) {
+						t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, tc.targetReplicas)
+					}
+				}
+			}
+		})
 	}
 }
