@@ -3,9 +3,7 @@ package tests
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
-	"path"
 	"testing"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
@@ -68,16 +66,12 @@ func deleteFunction(t *testing.T, function *sdk.DeployFunctionSpec) {
 	}
 }
 
-func scaleFunction(t *testing.T, name, namespace string, count int) {
+func scaleFunction(t *testing.T, name, namespace string, count uint64) {
 	t.Helper()
 
-	// the CLI sdk does not currently support manually scaling
-	gwURL := resourceURL(t, path.Join("system", "scale-function", name), fmt.Sprintf("namespace=%s", namespace))
-	payload := makeReader(map[string]interface{}{"service": name, "replicas": count})
-
-	_, res := request(t, gwURL, http.MethodPost, config.Auth, payload)
-	if res.StatusCode != http.StatusAccepted && res.StatusCode != http.StatusOK {
-		t.Fatalf("scale got %d, wanted %d (or %d)", res.StatusCode, http.StatusAccepted, http.StatusOK)
+	err := config.Client.ScaleFunction(context.Background(), name, namespace, count)
+	if err != nil {
+		t.Fatalf("scale got %s", err)
 	}
 }
 
