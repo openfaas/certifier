@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-KUBE_VERSION=v1.18.8
+KUBE_VERSION=v1.18.19
 
 echo ">>> Installing k3sup"
-sudo curl -sLS https://get.k3sup.dev | sh
-sudo install k3sup /usr/local/bin/
+curl -sLS https://get.k3sup.dev | sh
+k3sup 
 
 echo ">>> Installing arkade"
 curl -sLS https://dl.get-arkade.dev | sudo sh

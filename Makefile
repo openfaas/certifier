@@ -26,8 +26,14 @@ export TEST_FUNCTIONS TEST_SECRETS
 clean-kubernetes:
 	- ./contrib/clean_kubernetes.sh
 
+clean-faasd:
+	- ./contrib/clean_faasd.sh
+
 .TEST_FLAGS= # additional test flags, e.g. -run ^Test_ScaleFromZeroDuringIvoke$
 .FEATURE_FLAGS= # set config feature flags, e.g. -swarm
 
 test-kubernetes: clean-kubernetes
-	CERTIFIER_NAMESPACES=certifier-test time go test -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
+	CERTIFIER_NAMESPACES=certifier-test time go test -p=1 -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
+
+test-faasd: clean-faasd
+	CERTIFIER_NAMESPACES=certifier-test time go test -p=1 -count=1 ./tests -v -gateway=${OPENFAAS_URL} -enableAuth ${.FEATURE_FLAGS} ${.TEST_FLAGS}

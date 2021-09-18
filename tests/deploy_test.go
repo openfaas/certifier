@@ -50,11 +50,13 @@ func Test_Deploy_MetaData(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	imagePath := config.RegistryPrefix + "/" + "functions/alpine:latest"
+
 	cases := []FunctionTestCase{
 		{
 			name: "Deploy without any extra metadata",
 			function: types.FunctionDeployment{
-				Image:       "functions/alpine:latest",
+				Image:       imagePath,
 				Service:     "stronghash",
 				EnvProcess:  "sha512sum",
 				Annotations: &map[string]string{},
@@ -65,7 +67,7 @@ func Test_Deploy_MetaData(t *testing.T) {
 		{
 			name: "Deploy with labels",
 			function: types.FunctionDeployment{
-				Image:       "functions/alpine:latest",
+				Image:       imagePath,
 				Service:     "env-test-labels",
 				EnvProcess:  "env",
 				Annotations: &map[string]string{},
@@ -79,7 +81,7 @@ func Test_Deploy_MetaData(t *testing.T) {
 		{
 			name: "Deploy with annotations",
 			function: types.FunctionDeployment{
-				Image:      "functions/alpine:latest",
+				Image:      imagePath,
 				Service:    "env-test-annotations",
 				EnvProcess: "env",
 				Annotations: &map[string]string{
@@ -222,24 +224,26 @@ func compareDeployAndStatus(deploy types.FunctionDeployment, status types.Functi
 		return fmt.Errorf("got %v, expected Requests %v", status.Requests, deploy.Requests)
 	}
 
-	// we expect all systems to add the `faas_function` label?
-	expectedLabels := copyStrMap(deploy.Labels)
-	expectedLabels["faas_function"] = deploy.Service
-	if status.Labels == nil {
-		return fmt.Errorf("lables should not be nil")
-	}
-
-	err = strMapEqual("Lables", *status.Labels, expectedLabels)
-	if err != nil {
-		return err
-	}
-
-	// some systems add additional annotations, we remove those
-	if deploy.Annotations != nil && len(*deploy.Annotations) > 0 {
-		if status.Annotations == nil {
-			return fmt.Errorf("got nil Annotations, expected %d", len(*deploy.Annotations))
+	if config.ProviderName != faasdProviderName {
+		// we expect all systems to add the `faas_function` label?
+		expectedLabels := copyStrMap(deploy.Labels)
+		expectedLabels["faas_function"] = deploy.Service
+		if status.Labels == nil {
+			return fmt.Errorf("lables should not be nil")
 		}
-		return strMapEqual("Annotations", *status.Annotations, *deploy.Annotations)
+
+		err = strMapEqual("Lables", *status.Labels, expectedLabels)
+		if err != nil {
+			return err
+		}
+
+		// some systems add additional annotations, we remove those
+		if deploy.Annotations != nil && len(*deploy.Annotations) > 0 {
+			if status.Annotations == nil {
+				return fmt.Errorf("got nil Annotations, expected %d", len(*deploy.Annotations))
+			}
+			return strMapEqual("Annotations", *status.Annotations, *deploy.Annotations)
+		}
 	}
 
 	return nil

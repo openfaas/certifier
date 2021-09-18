@@ -1,9 +1,7 @@
 package tests
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -26,11 +24,6 @@ func resourceURL(t *testing.T, reqPath, query string) string {
 	uri.Path = path.Join(uri.Path, reqPath)
 	uri.RawQuery = query
 	return uri.String()
-}
-
-func makeReader(input interface{}) *bytes.Buffer {
-	res, _ := json.Marshal(input)
-	return bytes.NewBuffer(res)
 }
 
 func request(t *testing.T, url, method string, auth sdk.ClientAuth, reader io.Reader) ([]byte, *http.Response) {
