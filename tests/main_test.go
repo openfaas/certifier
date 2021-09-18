@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -18,9 +19,10 @@ import (
 )
 
 var (
-	config = Config{}
-	swarm  = flag.Bool("swarm", false, "helper flag to run only swarm-compatible tests only")
-	token  = flag.String("token", "", "authentication Bearer token override, enables auth automatically")
+	config                = Config{}
+	token                 = flag.String("token", "", "authentication Bearer token override, enables auth automatically")
+	faasdProviderName     = "faasd"
+	faasNetesProviderName = "faas-netes"
 )
 
 func init() {
@@ -34,7 +36,8 @@ func init() {
 		fmt.Sprintf("enable/disable authentication. The auth will be parsed from the default config in %s", filepath.Join(sdkConfig.DefaultDir, sdkConfig.DefaultFile)),
 	)
 	flag.BoolVar(&config.SecretUpdate, "secretUpdate", true, "enable/disable secret update tests")
-	flag.BoolVar(&config.ScaleToZero, "scaleToZero", true, "enable/disable scale from zero tests")
+	flag.BoolVar(&config.EnableScaling, "enableScaling", true, "enable/disable scale  tests")
+	flag.StringVar(&config.RegistryPrefix, "registryPrefix", "docker.io", "provide custom registry path")
 
 	FromEnv(&config)
 }
@@ -65,11 +68,6 @@ func TestMain(m *testing.M) {
 	// saved to the config. if we don't do this, we wont find the saved auth.
 	config.Gateway = strings.TrimRight(config.Gateway, "/")
 
-	if *swarm {
-		config.SecretUpdate = false
-		config.ScaleToZero = false
-	}
-
 	config.Auth = &Unauthenticated{}
 	if config.AuthEnabled || *token != "" {
 		// TODO : NewCLIAuth should return the error from LookupAuthConfig!
@@ -79,10 +77,19 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	timeout := 5 * time.Second
+	timeout := 30 * time.Second
 	config.Client, err = sdk.NewClient(config.Auth, config.Gateway, nil, &timeout)
 	if err != nil {
 		log.Fatalf("can not client: %s", err)
+	}
+
+	config.ProviderName, err = getProvider(config.Client)
+	if err != nil {
+		log.Fatalf("Can not get system info: %s", err)
+	}
+
+	if config.ProviderName == faasdProviderName {
+		config.EnableScaling = false
 	}
 
 	prettyConfig, err := json.MarshalIndent(config, "", "\t")
@@ -110,14 +117,20 @@ type Config struct {
 
 	// SecretUpdate enables/disables the secret update test
 	SecretUpdate bool
-	// ScaleToZero enables/disables the scale from zero test
-	ScaleToZero bool
 
 	// Namespaces to verfiy OpenFaaS provider
 	Namespaces []string
 
 	// DefaultNamespace for OpenFaas provider
 	DefaultNamespace string
+
+	// Provider Name of Openfaas
+	ProviderName string
+	//EnableScale will enable scaling test cases
+	EnableScaling bool
+
+	// registry prefix for private registry
+	RegistryPrefix string
 }
 
 func FromEnv(config *Config) {
@@ -148,4 +161,16 @@ func FromEnv(config *Config) {
 	} else {
 		config.DefaultNamespace = "openfaas-fn"
 	}
+}
+
+func getProvider(client *sdk.Client) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	info, err := client.GetSystemInfo(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return info.Provider.Name, nil
 }

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,6 +16,9 @@ import (
 )
 
 func Test_ScaleMinimum(t *testing.T) {
+	if !config.EnableScaling {
+		t.Skipf("scale to minimum is not supported for %s", config.ProviderName)
+	}
 	functionName := "test-min-scale"
 	minReplicas := uint64(2)
 	labels := map[string]string{
@@ -43,8 +47,8 @@ func Test_ScaleMinimum(t *testing.T) {
 }
 
 func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
-	if config.ScaleToZero {
-		t.Skip("scale to zero currently returns 500 in faas-swarm")
+	if !config.EnableScaling {
+		t.Skipf("scale to zero is not supported for %s", config.ProviderName)
 	}
 	functionName := "test-scale-from-zero"
 	functionRequest := &sdk.DeployFunctionSpec{
@@ -62,7 +66,11 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 
 	defer deleteFunction(t, functionRequest)
 
-	scaleFunction(t, functionName, 0)
+	err := config.Client.ScaleFunction(context.Background(), functionName, config.DefaultNamespace, 0)
+	time.Sleep(time.Minute)
+	if err != nil {
+		t.Error("Scaling down function to zero failed!")
+	}
 
 	fnc := get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != 0 {
@@ -74,6 +82,9 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 }
 
 func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
+	if !config.EnableScaling {
+		t.Skipf("scale up and down is not supported for %s", config.ProviderName)
+	}
 	functionName := "test-throughput-scaling"
 	minReplicas := uint64(1)
 	maxReplicas := uint64(2)
@@ -133,6 +144,9 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 }
 
 func Test_ScalingDisabledViaLabels(t *testing.T) {
+	if !config.EnableScaling {
+		t.Skipf("scaling disabled via label is not supported for %s", config.ProviderName)
+	}
 	functionName := "test-scaling-disabled"
 	minReplicas := uint64(2)
 	maxReplicas := minReplicas
@@ -188,6 +202,9 @@ func Test_ScalingDisabledViaLabels(t *testing.T) {
 }
 
 func Test_ScaleToZero(t *testing.T) {
+	if !config.EnableScaling {
+		t.Skipf("scale to zero is not supported for %s", config.ProviderName)
+	}
 
 	idlerEnabled := os.Getenv("idler_enabled")
 	if idlerEnabled == "" {

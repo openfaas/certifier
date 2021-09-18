@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
 	"github.com/openfaas/faas-provider/types"
@@ -17,7 +18,7 @@ func Test_SecretCRUD(t *testing.T) {
 	ctx := context.Background()
 
 	createStatus, _ := config.Client.CreateSecret(ctx, types.Secret{Name: setName, Value: setValue})
-	if createStatus != http.StatusCreated && createStatus != http.StatusAccepted {
+	if createStatus != http.StatusOK && createStatus != http.StatusAccepted {
 		t.Fatalf("got %d, wanted %d or %d", createStatus, http.StatusOK, http.StatusAccepted)
 	}
 	t.Logf("Got correct response for creating secret: %d", createStatus)
@@ -54,22 +55,32 @@ func Test_SecretCRUD(t *testing.T) {
 		t.Errorf("got %v, wanted %s in slice", secrets, setName)
 	}
 
-	// Docker Swarm secrets are immutable, so skip the update tests for swarm.
-	if config.SecretUpdate {
-		newValue := "this-is-the-edited-secret-value"
-		updateStatus, _ := config.Client.UpdateSecret(ctx, types.Secret{Name: setName, Value: newValue})
-		if updateStatus != http.StatusOK && updateStatus != http.StatusAccepted {
-			t.Errorf("got %d, wanted %d or %d", updateStatus, http.StatusOK, http.StatusAccepted)
-		}
-		t.Logf("Got correct response for updating secret: %d", updateStatus)
+	newValue := "this-is-the-edited-secret-value"
+	updateStatus, _ := config.Client.UpdateSecret(ctx, types.Secret{Name: setName, Value: newValue})
+	if updateStatus != http.StatusOK && updateStatus != http.StatusAccepted {
+		t.Errorf("got %d, wanted %d or %d", updateStatus, http.StatusOK, http.StatusAccepted)
+	}
+	t.Logf("Got correct response for updating secret: %d", updateStatus)
 
-		// Verify that the secret value was edited.
-		value = string(invoke(t, functionRequest, "", "", http.StatusOK))
-		if value != setValue {
-			t.Errorf("got %s, wanted %s", value, newValue)
+	if config.ProviderName == faasNetesProviderName {
+		err = config.Client.ScaleFunction(ctx, functionName, config.DefaultNamespace, 0)
+		if err != nil {
+			t.Error("Scaling down function to zero failed!")
 		}
-	} else {
-		t.Log("secret update skipped")
+		t.Log("Scale Down function to zero")
+		time.Sleep(time.Minute)
+		err = config.Client.ScaleFunction(ctx, functionName, config.DefaultNamespace, 1)
+		if err != nil {
+			t.Error("Scaling up function from zero failed!")
+		}
+		t.Log("Scale up function from zero")
+		time.Sleep(time.Minute)
+	}
+
+	// Verify that the secret value was edited.
+	value = string(invoke(t, functionRequest, "", "", http.StatusOK))
+	if value != newValue {
+		t.Errorf("got %s, wanted %s", value, newValue)
 	}
 
 	// Function needs to be deleted to free up the secret so it can also be deleted.

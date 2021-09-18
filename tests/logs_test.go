@@ -77,15 +77,16 @@ func Test_FunctionLogs(t *testing.T) {
 				t.Fatalf("got invoke response %s, expected %s", string(data), ns)
 			}
 
+			time.Sleep(30 * time.Second)
+
 			logRequest := logs.Request{
 				Name:      c.function.FunctionName,
 				Namespace: c.function.Namespace,
-				Tail:      2,
 				Follow:    false,
 			}
 
 			// use context with timeout here to ensure we don't hang waiting for logs too long
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			logChan, err := config.Client.GetLogs(ctx, logRequest)
@@ -107,23 +108,21 @@ func Test_FunctionLogs(t *testing.T) {
 				logLines = append(logLines, msg)
 			}
 
-			if len(logLines) != len(c.expectedLogs) {
-				debug := strings.Builder{}
-				for _, line := range logLines {
-					debug.WriteString(line.Text)
-				}
-				t.Logf("recieved:\n%s\n", debug.String())
-				t.Fatalf("got %d lines, expected %d", len(logLines), len(c.expectedLogs))
-			}
-
-			for idx, expected := range c.expectedLogs {
-				msg := logLines[idx]
-				// remove the timstamp and white space prefix
-				actual := strings.TrimLeft(msg.Text, "0123456789/: ")
-				if !strings.HasPrefix(actual, expected) {
-					t.Fatalf("got unexpected log message %q, expected %q", actual, expected)
+			for _, expected := range c.expectedLogs {
+				if !checkIfLogIsRecorded(logLines, expected) {
+					t.Fatalf("Expected log message %s not recorded", expected)
 				}
 			}
 		})
 	}
+}
+
+func checkIfLogIsRecorded(logLines []logs.Message, expected string) bool {
+	for _, msg := range logLines {
+		actual := strings.TrimLeft(msg.Text, "0123456789/: ")
+		if strings.HasPrefix(actual, expected) {
+			return true
+		}
+	}
+	return false
 }
