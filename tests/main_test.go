@@ -90,6 +90,7 @@ func TestMain(m *testing.M) {
 
 	if config.ProviderName == faasdProviderName {
 		config.EnableScaling = false
+		config.SecretUpdate = false
 	}
 
 	prettyConfig, err := json.MarshalIndent(config, "", "\t")
