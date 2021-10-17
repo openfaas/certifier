@@ -112,7 +112,7 @@ func Test_SecretCRUD(t *testing.T) {
 				// Verify that the secret value was set as intended.
 				mountedValue := string(invoke(t, functionRequest, "", "", http.StatusOK))
 				if mountedValue != value {
-					t.Errorf("got %s, wanted %s", value, value)
+					t.Errorf("got %s, wanted %s", mountedValue, value)
 				}
 			})
 
