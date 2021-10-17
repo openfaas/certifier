@@ -8,6 +8,7 @@ on:
 
 env:
   IP: 127.0.0.1
+  CERTIFIER_NAMESPACES: certifier-test
 
 jobs:
   lint:

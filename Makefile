@@ -15,10 +15,13 @@ TEST_FUNCTIONS = \
 	test-scaling-disabled \
 	test-scaling-to-zero \
 	test-logger \
-	redirector-test
+	redirector-test \
+	secret-string \
+	secret-bytes
 
 TEST_SECRETS = \
-	secret-name
+	secret-string \
+	secret-bytes
 
 export TEST_FUNCTIONS TEST_SECRETS
 
