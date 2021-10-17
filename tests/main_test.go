@@ -19,10 +19,10 @@ import (
 )
 
 var (
-	config                = Config{}
-	token                 = flag.String("token", "", "authentication Bearer token override, enables auth automatically")
-	faasdProviderName     = "faasd"
-	faasNetesProviderName = "faas-netes"
+	config            = Config{}
+	token             = flag.String("token", "", "authentication Bearer token override, enables auth automatically")
+	faasdProviderName = "faasd"
+	// faasNetesProviderName = "faas-netes"
 )
 
 func init() {
