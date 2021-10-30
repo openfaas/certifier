@@ -250,7 +250,7 @@ func compareDeployAndStatus(deploy types.FunctionDeployment, status types.Functi
 }
 
 func strMapEqual(mapName string, got map[string]string, wanted map[string]string) error {
-	// Can't assert length is equal as some providers i.e. faas-swarm add their own labels during
+	// Can't assert length is equal as some providers add their own labels during
 	// deployment like 'com.openfaas.function' and 'function'
 
 	for k, v := range wanted {

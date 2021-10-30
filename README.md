@@ -35,17 +35,6 @@ export OPENFAAS_URL=http://127.0.0.1:31112/
 make test-kubernetes .FEATURE_FLAGS='-enableAuth'
 ```
 
-### Swarm
-
-Usage with gateway on `http://127.0.0.1:8080/`:
-
-```
-export OPENFAAS_URL=http://127.0.0.1:8080/
-make test-swarm
-```
-
-You will need to have access to `docker` for creating and cleaning-up of state.
-
 ## Development
 
 While developing the `certifier`, we generally run/test the `certifier` locally using `faas-netes`.  The cleanest way to do this is using an throw-away cluster using [KinD](https://github.com/kubernetes-sigs/kind) and [arkade](https://github.com/alexellis/arkade)
@@ -91,12 +80,10 @@ Some providers may not implement all features (yet) or an installation may have 
     	enable/disable authentication. The auth will be parsed from the default config in ~/.openfaas/config.yml
   -gateway string
     	set the gateway URL, if empty use the gateway_url env variable
-  -scaleToZero
+  -enableScaling
     	enable/disable scale from zero tests (default true)
   -secretUpdate
     	enable/disable secret update tests (default true)
-  -swarm
-    	helper flag to run only swarm-compatible tests only
   -token string
     	authentication Bearer token override, enables auth automatically
 ```
