@@ -17,7 +17,8 @@ TEST_FUNCTIONS = \
 	test-logger \
 	redirector-test \
 	secret-string \
-	secret-bytes
+	secret-bytes \
+	memory-limit
 
 TEST_SECRETS = \
 	secret-string \
