@@ -93,6 +93,8 @@ func TestMain(m *testing.M) {
 		config.SecretUpdate = false
 	}
 
+	config.SupportCPULimits = config.ProviderName != faasdProviderName
+
 	prettyConfig, err := json.MarshalIndent(config, "", "\t")
 	if err != nil {
 		log.Fatalf("Config Pretty Print Failed with %s", err)
@@ -132,6 +134,8 @@ type Config struct {
 
 	// registry prefix for private registry
 	RegistryPrefix string
+
+	SupportCPULimits bool
 }
 
 func FromEnv(config *Config) {

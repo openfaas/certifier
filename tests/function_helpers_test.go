@@ -8,6 +8,7 @@ import (
 	"time"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
+	"github.com/openfaas/faas-cli/stack"
 	"github.com/openfaas/faas-provider/types"
 )
 
@@ -83,7 +84,7 @@ func copyNamespacesTest(cases []FunctionTestCase) []FunctionTestCase {
 		cases = append(cases, cnCases...)
 		return cases
 	}
-	return make([]FunctionTestCase, 0)
+	return cases
 }
 
 func createDeploymentSpec(test FunctionTestCase) *sdk.DeployFunctionSpec {
@@ -101,6 +102,16 @@ func createDeploymentSpec(test FunctionTestCase) *sdk.DeployFunctionSpec {
 
 	if test.function.Labels != nil {
 		functionRequest.Labels = *test.function.Labels
+	}
+
+	if test.function.Limits != nil {
+		limits := *test.function.Limits
+		functionRequest.FunctionResourceRequest = sdk.FunctionResourceRequest{
+			Limits: &stack.FunctionResources{
+				Memory: limits.Memory,
+				CPU:    limits.CPU,
+			},
+		}
 	}
 
 	return functionRequest

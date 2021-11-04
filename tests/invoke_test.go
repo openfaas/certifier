@@ -74,12 +74,12 @@ func invokeWithCustomEnvVarsAndQueryString(t *testing.T, functionRequest *sdk.De
 
 func Test_Invoke(t *testing.T) {
 	t.Logf("Gateway: %s", config.Gateway)
-
+	imagePrefix := config.RegistryPrefix + "/"
 	cases := []FunctionTestCase{
 		{
 			name: "Invoke test with different verbs",
 			function: types.FunctionDeployment{
-				Image:      "functions/alpine:latest",
+				Image:      imagePrefix + "functions/alpine:latest",
 				Service:    "env-test-verbs",
 				EnvProcess: "env",
 				EnvVars:    map[string]string{},
@@ -89,7 +89,7 @@ func Test_Invoke(t *testing.T) {
 		{
 			name: "Invoke propogates redirect to the caller",
 			function: types.FunctionDeployment{
-				Image:      "theaxer/redirector:latest",
+				Image:      imagePrefix + "theaxer/redirector:latest",
 				Service:    "redirector-test",
 				EnvProcess: "./handler",
 				EnvVars:    map[string]string{"destination": "http://example.com"},
@@ -99,7 +99,7 @@ func Test_Invoke(t *testing.T) {
 		{
 			name: "Invoke with custom env vars and query string",
 			function: types.FunctionDeployment{
-				Image:      "functions/alpine:latest",
+				Image:      imagePrefix + "functions/alpine:latest",
 				Service:    "env-test",
 				EnvProcess: "env",
 				EnvVars:    map[string]string{"custom_env": "custom_env_value"},

@@ -47,7 +47,7 @@ const someAnnotationJson = `{
  }`
 
 func Test_Deploy_MetaData(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	imagePath := config.RegistryPrefix + "/" + "functions/alpine:latest"
@@ -92,6 +92,21 @@ func Test_Deploy_MetaData(t *testing.T) {
 				Namespace: config.DefaultNamespace,
 			},
 		},
+		{
+			name: "Deploy with memory limit",
+			function: types.FunctionDeployment{
+				Image:       imagePath,
+				Service:     "memory-limit",
+				EnvProcess:  "env",
+				Annotations: &map[string]string{},
+				Labels:      &map[string]string{},
+				Namespace:   config.DefaultNamespace,
+				Limits: &types.FunctionResources{
+					Memory: "5Mi",
+					CPU:    "100m",
+				},
+			},
+		},
 	}
 
 	// Add Test case, if CERTIFIER_NAMESPACES defined
@@ -133,7 +148,7 @@ func Test_Deploy_MetaData(t *testing.T) {
 		for namespace, expected := range listCases {
 			actual, err := config.Client.ListFunctions(ctx, namespace)
 			if err != nil {
-				t.Fatalf("unable to List function in namspace: %s", err)
+				t.Fatalf("unable to List function in namspace %s: %s", namespace, err)
 			}
 
 			for _, actualF := range actual {
@@ -228,8 +243,22 @@ func compareDeployAndStatus(deploy types.FunctionDeployment, status types.Functi
 		return fmt.Errorf("incorrect Secrets: %s", err)
 	}
 
-	if !reflect.DeepEqual(deploy.Limits, status.Limits) {
-		return fmt.Errorf("got %v, expected Limits %v", status.Limits, deploy.Limits)
+	if deploy.Limits != nil {
+		if status.Limits == nil {
+			return fmt.Errorf("got nil, expected Limits %v", deploy.Limits)
+		}
+
+		if deploy.Limits.Memory != status.Limits.Memory {
+			return fmt.Errorf("got %s, expected Requested Limit %s", status.Limits.Memory, deploy.Limits.Memory)
+		}
+
+		if config.SupportCPULimits && deploy.Limits.CPU != status.Limits.CPU {
+			return fmt.Errorf("got %s, expected Requested Limit %s", status.Limits.CPU, deploy.Limits.CPU)
+		}
+	}
+
+	if deploy.Limits == nil && status.Limits != nil {
+		return fmt.Errorf("got %v, expected nil", status.Limits)
 	}
 
 	if !reflect.DeepEqual(deploy.Requests, status.Requests) {
