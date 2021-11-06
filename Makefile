@@ -39,4 +39,4 @@ test-kubernetes: clean-kubernetes
 	CERTIFIER_NAMESPACES=certifier-test time go test -p=1 -count=1 ./tests -v -gateway=${OPENFAAS_URL} ${.FEATURE_FLAGS} ${.TEST_FLAGS}
 
 test-faasd: clean-faasd
-	CERTIFIER_NAMESPACES=certifier-test time go test -p=1 -count=1 ./tests -v -gateway=${OPENFAAS_URL} -enableAuth ${.FEATURE_FLAGS} ${.TEST_FLAGS}
+	time go test -p=1 -count=1 ./tests -v -gateway=${OPENFAAS_URL} -enableAuth ${.FEATURE_FLAGS} ${.TEST_FLAGS}
