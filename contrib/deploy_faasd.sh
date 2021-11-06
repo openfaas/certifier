@@ -5,8 +5,10 @@ sudo curl -s https://raw.githubusercontent.com/openfaas/faasd/master/hack/instal
 
 sleep 120
 
-sudo ctr namespace create certifier-test
-sudo ctr namespace label certifier-test openfaas=true
+if [ "z$CERTIFIER_NAMESPACES" != "z" ]; then
+    sudo ctr namespace create certifier-test
+    sudo ctr namespace label certifier-test openfaas=true
+fi
 
 echo ">>> Login Using faas-cli"
 cd $HOME

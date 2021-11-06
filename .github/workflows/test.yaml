@@ -2,9 +2,9 @@ name: build
 
 on:
   push:
-    branches: [ "*" ]
+    branches: ["*"]
   pull_request:
-    branches: [ "*" ]
+    branches: ["*"]
 
 env:
   IP: 127.0.0.1
@@ -14,8 +14,8 @@ jobs:
   lint:
     strategy:
       matrix:
-        go-version: [ 1.13.x ]
-        os: [ ubuntu-latest ]
+        go-version: [1.13.x]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@master
@@ -32,8 +32,8 @@ jobs:
   test-kubernetes:
     strategy:
       matrix:
-        go-version: [ 1.13.x ]
-        os: [ ubuntu-latest ]
+        go-version: [1.13.x]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@master
@@ -56,9 +56,11 @@ jobs:
   test-faasd:
     strategy:
       matrix:
-        go-version: [ 1.13.x ]
-        os: [ ubuntu-latest ]
+        go-version: [1.13.x]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      CERTIFIER_NAMESPACES: ""
     steps:
       - uses: actions/checkout@master
         with:
