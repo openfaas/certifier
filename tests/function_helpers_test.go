@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
 	"github.com/openfaas/faas-provider/types"
@@ -100,4 +101,43 @@ func createDeploymentSpec(test FunctionTestCase) *sdk.DeployFunctionSpec {
 	}
 
 	return functionRequest
+}
+
+// waitForFunctionStatus polls the function status endpoint until the test function returns true _or_ the specified timeout.
+func waitForFunctionStatus(timeout time.Duration, name, namespace string, test func(types.FunctionStatus) bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	for ctx.Err() == nil {
+		function, err := config.Client.GetFunctionInfo(ctx, name, namespace)
+		if err != nil {
+			return err
+		}
+
+		if test(function) {
+			return nil
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	return ctx.Err()
+}
+
+func maxReplicaCount(count uint64) func(types.FunctionStatus) bool {
+	return func(function types.FunctionStatus) bool {
+		return function.Replicas <= count
+	}
+}
+
+func minReplicaCount(count uint64) func(types.FunctionStatus) bool {
+	return func(function types.FunctionStatus) bool {
+		return function.Replicas >= count
+	}
+}
+
+func minAvailableReplicaCount(count uint64) func(types.FunctionStatus) bool {
+	return func(function types.FunctionStatus) bool {
+		return function.AvailableReplicas >= count
+	}
 }

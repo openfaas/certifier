@@ -72,6 +72,11 @@ func Test_FunctionLogs(t *testing.T) {
 				ns = config.DefaultNamespace
 			}
 
+			err := waitForFunctionStatus(time.Minute, c.function.FunctionName, ns, minAvailableReplicaCount(1))
+			if err != nil {
+				t.Fatalf("Function %q failed to start: %s", c.function.FunctionName, err)
+			}
+
 			data := invoke(t, &c.function, "", ns, http.StatusOK)
 			if string(data) != ns {
 				t.Fatalf("got invoke response %s, expected %s", string(data), ns)
