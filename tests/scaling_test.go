@@ -12,6 +12,7 @@ import (
 	"time"
 
 	sdk "github.com/openfaas/faas-cli/proxy"
+	types "github.com/openfaas/faas-provider/types"
 	"github.com/rakyll/hey/requester"
 )
 
@@ -63,13 +64,16 @@ func Test_ScaleFromZeroDuringInvoke(t *testing.T) {
 	if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
 		t.Fatalf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
 	}
-
 	defer deleteFunction(t, functionRequest)
 
-	err := config.Client.ScaleFunction(context.Background(), functionName, config.DefaultNamespace, 0)
-	time.Sleep(time.Minute)
+	err := waitForFunctionStatus(time.Minute, functionName, config.DefaultNamespace, minAvailableReplicaCount(1))
 	if err != nil {
-		t.Error("Scaling down function to zero failed!")
+		t.Fatalf("Function %q failed to start: %s", functionName, err)
+	}
+
+	err = config.Client.ScaleFunction(context.Background(), functionName, config.DefaultNamespace, 0)
+	if err != nil {
+		t.Fatalf("Scaling down function to zero failed: %s", err)
 	}
 
 	fnc := get(t, functionName, config.DefaultNamespace)
@@ -127,17 +131,28 @@ func Test_ScaleUpAndDownFromThroughPut(t *testing.T) {
 	}
 
 	functionLoad.Init()
-	functionLoad.Run()
+	go func() {
+		functionLoad.Run()
+	}()
 
-	fnc := get(t, functionName, config.DefaultNamespace)
-	if fnc.Replicas != maxReplicas {
+	var status types.FunctionStatus
+	_ = waitForFunctionStatus(time.Minute, functionName, config.DefaultNamespace, func(fnc types.FunctionStatus) bool {
+		status = fnc
+		if fnc.Replicas >= maxReplicas {
+			functionLoad.Stop()
+			return true
+		}
+		return false
+	})
+
+	if status.Replicas != maxReplicas {
 		t.Logf("function load output %s", loadOutput.String())
-		t.Fatalf("never reached max scale %d, only %d replicas after %d attempts", maxReplicas, fnc.Replicas, attempts)
+		t.Fatalf("never reached max scale %d, only %d replicas after %d attempts", maxReplicas, status.Replicas, attempts)
 	}
 
 	// cooldown
-	time.Sleep(time.Minute)
-	fnc = get(t, functionName, config.DefaultNamespace)
+	_ = waitForFunctionStatus(time.Minute, functionName, config.DefaultNamespace, maxReplicaCount(minReplicas))
+	fnc := get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != minReplicas {
 		t.Fatalf("got %d replicas, wanted %d", fnc.Replicas, minReplicas)
 	}
@@ -270,7 +285,7 @@ func Test_ScaleToZero(t *testing.T) {
 	}
 
 	// cooldown
-	time.Sleep(2 * time.Minute)
+	_ = waitForFunctionStatus(2*time.Minute, functionName, config.DefaultNamespace, minReplicaCount(0))
 	fnc = get(t, functionName, config.DefaultNamespace)
 	if fnc.Replicas != 0 {
 		t.Fatalf("got %d replicas, wanted 0", fnc.Replicas)
