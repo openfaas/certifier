@@ -65,7 +65,7 @@ func deleteFunction(t *testing.T, function *sdk.DeployFunctionSpec) {
 		function.Namespace,
 	)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("unable to delete %s.%s, error: %s", function.FunctionName, function.Namespace, err)
 	}
 }
 
