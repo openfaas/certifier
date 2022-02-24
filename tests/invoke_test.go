@@ -117,7 +117,26 @@ func Test_Invoke(t *testing.T) {
 				return
 			}
 
-			list(t, http.StatusOK, functionRequest.Namespace)
+			fns := list(t, http.StatusOK, functionRequest.Namespace)
+
+			inList := false
+			for _, fn := range fns {
+				if fn.Name == functionRequest.FunctionName && fn.Namespace == functionRequest.Namespace {
+					inList = true
+					break
+				}
+			}
+			if !inList {
+				t.Fatalf("want function %s in list, but was not found", functionRequest.FunctionName)
+			}
+
+			status := get(t, functionRequest.FunctionName, functionRequest.Namespace)
+
+			if status.Image != functionRequest.Image {
+				t.Fatalf("function status image - want %s, but got %s",
+					functionRequest.Image,
+					status.Image)
+			}
 
 			switch service := c.function.Service; service {
 			case "env-test-verbs":
