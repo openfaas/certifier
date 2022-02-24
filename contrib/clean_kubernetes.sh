@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 namespaces="openfaas-fn,$CERTIFIER_NAMESPACES"
 for ns in ${namespaces//,/ }
 do
