@@ -4,7 +4,7 @@ github.com/drone/envsubst/parse
 github.com/drone/envsubst/path
 # github.com/mitchellh/go-homedir v1.1.0
 github.com/mitchellh/go-homedir
-# github.com/openfaas/faas-cli v0.0.0-20220126162803-b1c09c0243f6
+# github.com/openfaas/faas-cli v0.0.0-20220224114835-56b1a7db771a
 ## explicit
 github.com/openfaas/faas-cli/config
 github.com/openfaas/faas-cli/proxy
