@@ -177,7 +177,7 @@ func Test_ListNamespaces(t *testing.T) {
 	actualNamespaces, err := config.Client.ListNamespaces(context.Background())
 
 	if err != nil {
-		t.Fatalf("Unable to List OpenFaaS Namespaces: %q", err)
+		t.Fatalf("error listing namespaces at (%s), error: %q", config.Gateway, err)
 	}
 
 	expectedLen := len(expectedNamespaces)
