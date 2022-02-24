@@ -103,19 +103,19 @@ func Test_FunctionLogs(t *testing.T) {
 			for msg := range logChan {
 
 				if msg.Name != c.function.FunctionName {
-					t.Fatalf("got function name %s, expected %s", msg.Name, c.function.FunctionName)
+					t.Fatalf("function name got %s, want %s", msg.Name, c.function.FunctionName)
 				}
 
 				if msg.Namespace != c.function.Namespace {
-					t.Logf("got function namespace %s, expected %s", msg.Namespace, c.function.Namespace)
+					t.Logf("function got: %s, want: %s", msg.Namespace, c.function.Namespace)
 				}
 
 				logLines = append(logLines, msg)
 			}
 
-			for _, expected := range c.expectedLogs {
-				if !checkIfLogIsRecorded(logLines, expected) {
-					t.Fatalf("Expected log message %s not recorded", expected)
+			for _, want := range c.expectedLogs {
+				if !checkIfLogIsRecorded(logLines, want) {
+					t.Fatalf("Want log message %q, but were not recorded", want)
 				}
 			}
 		})
