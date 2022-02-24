@@ -46,4 +46,6 @@ func Test_ProviderInfo(t *testing.T) {
 	if v.SHA == "" {
 		t.Fatal("gateway version sha may not be empty")
 	}
+
+	t.Logf("Info returned: %v", systeminfo)
 }
