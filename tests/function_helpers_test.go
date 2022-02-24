@@ -28,7 +28,8 @@ func deploy(t *testing.T, createRequest *sdk.DeployFunctionSpec) int {
 
 	statusCode := config.Client.DeployFunction(context.Background(), createRequest)
 	if statusCode >= 400 {
-		t.Fatalf("unable to deploy function: %d", statusCode)
+		t.Fatalf("unable to deploy function (%s.%s): %d",
+			createRequest.FunctionName, createRequest.Namespace, statusCode)
 	}
 
 	return statusCode

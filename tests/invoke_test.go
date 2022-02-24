@@ -73,6 +73,8 @@ func invokeWithCustomEnvVarsAndQueryString(t *testing.T, functionRequest *sdk.De
 }
 
 func Test_Invoke(t *testing.T) {
+	t.Logf("Gateway: %s", config.Gateway)
+
 	cases := []FunctionTestCase{
 		{
 			name: "Invoke test with different verbs",
