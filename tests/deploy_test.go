@@ -146,6 +146,17 @@ func Test_Deploy_MetaData(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+
+				info, err := config.Client.GetFunctionInfo(ctx, expectedF.Service, namespace)
+				if err != nil {
+					t.Fatalf("unable to get function info for %s.%s, error: %s",
+						namespace, expectedF.Service, err)
+				}
+
+				if info.Image != expectedF.Image {
+					t.Fatalf("want image %s, but got %s", expectedF.Image, info.Image)
+				}
+
 				delete(expected, actualF.Name)
 			}
 
@@ -156,6 +167,7 @@ func Test_Deploy_MetaData(t *testing.T) {
 				}
 				t.Fatalf("not all functions found in response: %s", strings.Join(remaining, ", "))
 			}
+
 		}
 	})
 }

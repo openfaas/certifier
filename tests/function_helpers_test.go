@@ -34,7 +34,7 @@ func deploy(t *testing.T, createRequest *sdk.DeployFunctionSpec) int {
 	return statusCode
 }
 
-func list(t *testing.T, expectedStatusCode int, namespace string) {
+func list(t *testing.T, expectedStatusCode int, namespace string) []types.FunctionStatus {
 	functions, err := config.Client.ListFunctions(context.Background(), namespace)
 	if err != nil {
 		t.Fatal(err)
@@ -43,12 +43,14 @@ func list(t *testing.T, expectedStatusCode int, namespace string) {
 	if len(functions) == 0 {
 		t.Fatal("List functions got: 0, want: > 0")
 	}
+
+	return functions
 }
 
 func get(t *testing.T, name string, namespace string) types.FunctionStatus {
 	function, err := config.Client.GetFunctionInfo(context.Background(), name, namespace)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("error getting info for: %s.%s, error: %s", name, namespace, err)
 	}
 
 	return function

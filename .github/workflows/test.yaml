@@ -14,7 +14,7 @@ jobs:
   lint:
     strategy:
       matrix:
-        go-version: [1.13.x]
+        go-version: [1.17.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -32,7 +32,7 @@ jobs:
   test-kubernetes:
     strategy:
       matrix:
-        go-version: [1.13.x]
+        go-version: [1.17.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -56,7 +56,7 @@ jobs:
   test-faasd:
     strategy:
       matrix:
-        go-version: [1.13.x]
+        go-version: [1.17.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     env:
