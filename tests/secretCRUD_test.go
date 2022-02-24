@@ -75,14 +75,14 @@ func Test_SecretCRUD(t *testing.T) {
 			// Verify that the secret are empty.
 			secrets, err := config.Client.GetSecretList(ctx, tc.secret.Namespace)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("error listing secrets in namespace: %s, error: %s", tc.secret.Namespace, err)
 			}
 
 			if listContains(secrets, tc.secret.Name) {
 				t.Fatalf("namespace already has secret %s in %s: %v", tc.secret.Name, tc.secret.Namespace, secrets)
 			}
 
-			t.Logf("existing secrets in %s: %v", tc.secret.Namespace, secrets)
+			t.Logf("Secrets found in %s: %v", tc.secret.Namespace, secrets)
 
 			// Set up and deploy function that reads the value of the created secret.
 			functionRequest := &sdk.DeployFunctionSpec{
@@ -101,12 +101,15 @@ func Test_SecretCRUD(t *testing.T) {
 				case http.StatusCreated, http.StatusAccepted, http.StatusOK:
 					// happy path
 				default:
-					t.Fatalf("got %d, wanted %d or %d", createStatus, http.StatusOK, http.StatusAccepted)
+					t.Fatalf("creating secret %s.%s got %d, wanted %d or %d",
+						tc.secret.Name, tc.secret.Namespace, createStatus, http.StatusOK, http.StatusAccepted)
 				}
 
 				deployStatus := deploy(t, functionRequest)
 				if deployStatus != http.StatusOK && deployStatus != http.StatusAccepted {
-					t.Errorf("got %d, wanted %d or %d", deployStatus, http.StatusOK, http.StatusAccepted)
+					t.Errorf("error deploying %s.%s, got %d, wanted %d or %d",
+						functionRequest.FunctionName, functionRequest.Namespace,
+						deployStatus, http.StatusOK, http.StatusAccepted)
 				}
 
 				// Verify that the secret value was set as intended.
@@ -120,7 +123,7 @@ func Test_SecretCRUD(t *testing.T) {
 				// Verify that the secret can be listed.
 				secrets, err := config.Client.GetSecretList(ctx, tc.secret.Namespace)
 				if err != nil {
-					t.Fatal(err)
+					t.Fatalf("error listing secrets in namespace: %s, error: %s", tc.secret.Namespace, err)
 				}
 
 				if !listContains(secrets, tc.secret.Name) {
@@ -174,13 +177,14 @@ func Test_SecretCRUD(t *testing.T) {
 
 				err = config.Client.RemoveSecret(ctx, tc.secret)
 				if err != nil {
-					t.Fatal(err)
+					t.Fatalf("error removing secret: %s.%s, error: %s",
+						tc.secret.Name, tc.secret.Namespace, err)
 				}
 
 				// Verify that the secret was deleted.
 				secrets, err := config.Client.GetSecretList(ctx, tc.secret.Namespace)
 				if err != nil {
-					t.Fatal(err)
+					t.Fatalf("error listing secrets in namespace: %s, error: %s", tc.secret.Namespace, err)
 				}
 
 				if listContains(secrets, tc.secret.Name) {
